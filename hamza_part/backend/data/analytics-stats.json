@@ -1,0 +1,11 @@
+{
+  "generatedAt": "",
+  "source": "main-backend-mongodb",
+  "stats": [],
+  "summary": {
+    "playerCount": 0,
+    "totalWins": 0,
+    "totalLosses": 0,
+    "totalMatches": 0
+  }
+}

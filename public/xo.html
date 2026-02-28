@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>X O vs Bot - LudoX</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --red: #FF4757;
+      --blue: #2E86FF;
+      --green: #2ED573;
+      --yellow: #FFD32A;
+      --navy: #0D1B3E;
+      --navy2: #112247;
+      --text: #C8D6F0;
+      --white: #FFFFFF;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Nunito', sans-serif;
+      color: var(--white);
+      background: var(--navy);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+
+    .navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 24px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      background: rgba(13,27,62,0.92);
+      backdrop-filter: blur(8px);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--white);
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.2rem;
+    }
+
+    .logo-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, var(--yellow), #FF9500);
+    }
+
+    .btn {
+      border: none;
+      border-radius: 12px;
+      padding: 10px 16px;
+      font-weight: 800;
+      cursor: pointer;
+      color: var(--white);
+      background: linear-gradient(135deg, var(--blue), #1a6edb);
+    }
+
+    main {
+      flex: 1;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .card {
+      width: min(92vw, 560px);
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.35);
+      backdrop-filter: blur(8px);
+    }
+
+    .title {
+      font-family: 'Fredoka One', cursive;
+      font-size: 2rem;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: var(--text);
+      font-weight: 700;
+      margin-bottom: 18px;
+    }
+
+    .status {
+      text-align: center;
+      padding: 10px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      font-weight: 800;
+      margin-bottom: 16px;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 0 auto;
+      width: min(90vw, 360px);
+    }
+
+    .cell {
+      aspect-ratio: 1/1;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 16px;
+      background: rgba(255,255,255,0.04);
+      color: white;
+      font-family: 'Fredoka One', cursive;
+      font-size: clamp(2rem, 8vw, 3.3rem);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: transform .12s, border-color .2s, background .2s;
+      user-select: none;
+    }
+
+    .cell:hover:not(.disabled) {
+      transform: translateY(-2px);
+      border-color: var(--blue);
+      background: rgba(46,134,255,0.12);
+    }
+
+    .cell.disabled {
+      cursor: not-allowed;
+      opacity: 0.9;
+    }
+
+    .x { color: var(--red); }
+    .o { color: var(--green); }
+
+    .score {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .score-item {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 12px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .score-item b { font-size: 1.2rem; display: block; }
+
+    .actions {
+      margin-top: 16px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 2px solid rgba(255,255,255,0.24);
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <a class="logo" id="backProfile" href="/profile">
+      <span class="logo-icon">🎲</span>
+      <span>LudoX</span>
+    </a>
+    <button class="btn" id="backBtn">Back to Profile</button>
+  </nav>
+
+  <main>
+    <section class="card">
+      <h1 class="title">❌ ⭕ X O</h1>
+      <p class="subtitle">Offline mode • Play against bot (1v1)</p>
+      <div class="status" id="statusText">Your turn (X)</div>
+
+      <div class="board" id="board"></div>
+
+      <div class="score">
+        <div class="score-item"><b id="wins">0</b><span>Wins</span></div>
+        <div class="score-item"><b id="losses">0</b><span>Losses</span></div>
+        <div class="score-item"><b id="draws">0</b><span>Draws</span></div>
+      </div>
+
+      <div class="actions">
+        <button class="btn" id="newRoundBtn">New Round</button>
+        <button class="btn btn-secondary" id="resetScoreBtn">Reset Score</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token") || "";
+    const email = params.get("email") || "";
+
+    const profileUrl = `/profile?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+    document.getElementById("backProfile").href = profileUrl;
+    document.getElementById("backBtn").onclick = () => { window.location.href = profileUrl; };
+
+    const SCORE_KEY = `xo-score-${email || "guest"}`;
+    const boardEl = document.getElementById("board");
+    const statusEl = document.getElementById("statusText");
+
+    let board = Array(9).fill(null);
+    let gameOver = false;
+
+    const lines = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+
+    function getScore() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(SCORE_KEY) || "{}");
+        return {
+          wins: Number(saved.wins || 0),
+          losses: Number(saved.losses || 0),
+          draws: Number(saved.draws || 0)
+        };
+      } catch {
+        return { wins: 0, losses: 0, draws: 0 };
+      }
+    }
+
+    function saveScore(score) {
+      localStorage.setItem(SCORE_KEY, JSON.stringify(score));
+      document.getElementById("wins").textContent = String(score.wins);
+      document.getElementById("losses").textContent = String(score.losses);
+      document.getElementById("draws").textContent = String(score.draws);
+    }
+
+    function winnerOf(cells) {
+      for (const [a,b,c] of lines) {
+        if (cells[a] && cells[a] === cells[b] && cells[a] === cells[c]) {
+          return cells[a];
+        }
+      }
+      return null;
+    }
+
+    function render() {
+      boardEl.innerHTML = "";
+      board.forEach((value, idx) => {
+        const btn = document.createElement("button");
+        btn.className = `cell ${value ? "disabled" : ""}`;
+        if (value === "X") btn.classList.add("x");
+        if (value === "O") btn.classList.add("o");
+        btn.textContent = value || "";
+        btn.disabled = gameOver || Boolean(value);
+        btn.onclick = () => humanMove(idx);
+        boardEl.appendChild(btn);
+      });
+    }
+
+    function endRound(result) {
+      gameOver = true;
+      const score = getScore();
+
+      if (result === "X") {
+        statusEl.textContent = "🎉 You win!";
+        score.wins += 1;
+      } else if (result === "O") {
+        statusEl.textContent = "😵 You lose! Bot wins.";
+        score.losses += 1;
+      } else {
+        statusEl.textContent = "🤝 Draw game!";
+        score.draws += 1;
+      }
+
+      saveScore(score);
+      render();
+    }
+
+    function findBestBotMove() {
+      const empty = board.map((v, i) => v ? -1 : i).filter(i => i !== -1);
+
+      for (const i of empty) {
+        const t = [...board];
+        t[i] = "O";
+        if (winnerOf(t) === "O") return i;
+      }
+
+      for (const i of empty) {
+        const t = [...board];
+        t[i] = "X";
+        if (winnerOf(t) === "X") return i;
+      }
+
+      if (!board[4]) return 4;
+
+      const corners = [0,2,6,8].filter(i => !board[i]);
+      if (corners.length) return corners[Math.floor(Math.random() * corners.length)];
+
+      return empty[Math.floor(Math.random() * empty.length)];
+    }
+
+    function botMove() {
+      if (gameOver) return;
+      const idx = findBestBotMove();
+      if (idx === undefined) return;
+      board[idx] = "O";
+
+      const winner = winnerOf(board);
+      if (winner) return endRound(winner);
+      if (board.every(Boolean)) return endRound("draw");
+
+      statusEl.textContent = "Your turn (X)";
+      render();
+    }
+
+    function humanMove(idx) {
+      if (gameOver || board[idx]) return;
+
+      board[idx] = "X";
+      render();
+
+      const winner = winnerOf(board);
+      if (winner) return endRound(winner);
+      if (board.every(Boolean)) return endRound("draw");
+
+      statusEl.textContent = "Bot is thinking...";
+      setTimeout(botMove, 350);
+    }
+
+    function newRound() {
+      board = Array(9).fill(null);
+      gameOver = false;
+      statusEl.textContent = "Your turn (X)";
+      render();
+    }
+
+    document.getElementById("newRoundBtn").onclick = newRound;
+    document.getElementById("resetScoreBtn").onclick = () => {
+      saveScore({ wins: 0, losses: 0, draws: 0 });
+      newRound();
+    };
+
+    saveScore(getScore());
+    newRound();
+  </script>
+</body>
+</html>

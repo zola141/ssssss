@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Profile - LudoX</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --red:    #FF4757;
+      --blue:   #2E86FF;
+      --green:  #2ED573;
+      --yellow: #FFD32A;
+      --navy:   #0D1B3E;
+      --navy2:  #112247;
+      --navy3:  #1a2f5a;
+      --white:  #FFFFFF;
+      --text:   #C8D6F0;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: var(--navy);
+      color: var(--white);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Navbar */
+    .navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: rgba(13,27,62,0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .navbar-left {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--yellow), #FF9500);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .brand {
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.5rem;
+      color: white;
+      letter-spacing: 0.02em;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 24px;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: rgba(255,255,255,0.6);
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover,
+    .nav-links a.active {
+      color: #fff;
+    }
+
+    .navbar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--blue);
+    }
+
+    .btn-outline {
+      padding: 9px 22px;
+      font-size: 0.875rem;
+      border: 2px solid rgba(255,255,255,0.2);
+      background: transparent;
+      color: white;
+      border-radius: 12px;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-outline:hover {
+      border-color: var(--blue);
+      background: rgba(46,134,255,0.1);
+    }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      padding-top: 80px;
+      padding-bottom: 80px;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px);
+      background-size: 28px 28px;
+      position: relative;
+    }
+
+    .main-content::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: radial-gradient(ellipse 60% 40% at 20% 10%, rgba(46,134,255,0.12) 0%, transparent 60%),
+                  radial-gradient(ellipse 50% 40% at 80% 80%, rgba(255,71,87,0.10) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .container {
+      position: relative;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 40px 24px;
+      z-index: 1;
+    }
+
+    .profile-header {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 28px;
+      backdrop-filter: blur(10px);
+      padding: 48px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+
+    .profile-avatar {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 4px solid var(--blue);
+      box-shadow: 0 8px 24px rgba(46,134,255,0.3);
+    }
+
+    .profile-info {
+      flex: 1;
+    }
+
+    .profile-name {
+      font-family: 'Fredoka One', cursive;
+      font-size: 2.5rem;
+      margin-bottom: 8px;
+    }
+
+    .profile-meta {
+      color: var(--text);
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-top: 24px;
+    }
+
+    .stat-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-family: 'Fredoka One', cursive;
+      font-size: 2rem;
+      color: var(--blue);
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      color: var(--text);
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .actions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+    }
+
+    .action-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+      backdrop-filter: blur(10px);
+    }
+
+    .action-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--blue);
+      box-shadow: 0 12px 32px rgba(46,134,255,0.2);
+    }
+
+    .action-icon {
+      font-size: 3rem;
+      margin-bottom: 16px;
+    }
+
+    .action-title {
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.3rem;
+      margin-bottom: 8px;
+    }
+
+    .action-desc {
+      color: var(--text);
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .btn-action {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 14px;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 800;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-top: 16px;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--blue), #1a6edb);
+      color: white;
+      box-shadow: 0 8px 24px rgba(46,134,255,0.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(46,134,255,0.4);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, var(--green), #20b35f);
+      color: white;
+      box-shadow: 0 8px 24px rgba(46,213,115,0.3);
+    }
+
+    .btn-success:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(46,213,115,0.4);
+    }
+
+    .btn-warning {
+      background: linear-gradient(135deg, var(--yellow), #f5a623);
+      color: var(--navy);
+      box-shadow: 0 8px 24px rgba(255,211,42,0.3);
+    }
+
+    .btn-warning:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(255,211,42,0.4);
+    }
+
+    /* Footer */
+    footer {
+      padding: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid rgba(255,255,255,0.07);
+      flex-wrap: wrap;
+      gap: 16px;
+      background: rgba(13,27,62,0.8);
+    }
+
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 24px;
+    }
+
+    .footer-links a {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--text);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover {
+      color: #fff;
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(8px);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-content {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 28px;
+      backdrop-filter: blur(10px);
+      padding: 40px;
+      max-width: 440px;
+      width: 100%;
+      box-shadow: 0 40px 100px rgba(0,0,0,0.6);
+    }
+
+    .modal-title {
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.8rem;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 900;
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 8px;
+    }
+
+    input[type="text"],
+    input[type="radio"] {
+      margin-right: 8px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 14px 16px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      color: white;
+      font-family: 'Nunito', sans-serif;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(46,134,255,0.15);
+    }
+
+    .radio-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .radio-label {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: white;
+      font-weight: 700;
+      text-transform: none;
+    }
+
+    .radio-label:hover {
+      background: rgba(255,255,255,0.08);
+      border-color: var(--blue);
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .btn-cancel {
+      flex: 1;
+      padding: 14px;
+      border: 2px solid rgba(255,255,255,0.2);
+      background: transparent;
+      color: white;
+      border-radius: 14px;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-cancel:hover {
+      border-color: var(--red);
+      background: rgba(255,71,87,0.1);
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-left">
+      <a href="/" class="logo">
+        <div class="logo-icon">🎲</div>
+        <span class="brand">LudoX</span>
+      </a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/profile" class="active">Profile</a>
+      </div>
+    </div>
+    <div class="navbar-right">
+      <img id="navAvatar" class="user-avatar" alt="Avatar">
+      <button class="btn-outline" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <div class="container">
+      <!-- Profile Header -->
+      <div class="profile-header">
+        <img id="profileAvatar" class="profile-avatar" alt="Profile avatar">
+        <div class="profile-info">
+          <div id="profileName" class="profile-name">Loading...</div>
+          <div id="profileMeta" class="profile-meta"></div>
+          
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div id="levelCount" class="stat-value">1</div>
+              <div class="stat-label">Level</div>
+            </div>
+            <div class="stat-card">
+              <div id="xpCount" class="stat-value">0/100</div>
+              <div class="stat-label">XP</div>
+            </div>
+            <div class="stat-card">
+              <div id="winsCount" class="stat-value">0</div>
+              <div class="stat-label">Wins</div>
+            </div>
+            <div class="stat-card">
+              <div id="lossesCount" class="stat-value">0</div>
+              <div class="stat-label">Losses</div>
+            </div>
+            <div class="stat-card">
+              <div id="drawsCount" class="stat-value">0</div>
+              <div class="stat-label">Draws</div>
+            </div>
+            <div class="stat-card">
+              <div id="matchesCount" class="stat-value">0</div>
+              <div class="stat-label">Matches</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="actions-grid">
+        <div class="action-card">
+          <div class="action-icon">🤖</div>
+          <div class="action-title">Play vs Bots</div>
+          <div class="action-desc">Practice against AI opponents</div>
+          <button class="btn-action btn-primary" onclick="playAgainstBots()">Start Game</button>
+        </div>
+
+        <div class="action-card">
+          <div class="action-icon">🎯</div>
+          <div class="action-title">Create Room</div>
+          <div class="action-desc">Host a private game</div>
+          <button class="btn-action btn-success" onclick="showCreateRoomModal()">Create</button>
+        </div>
+
+        <div class="action-card">
+          <div class="action-icon">🚪</div>
+          <div class="action-title">Join Room</div>
+          <div class="action-desc">Enter with room code</div>
+          <button class="btn-action btn-warning" onclick="showJoinRoomModal()">Join</button>
+        </div>
+
+        <div class="action-card">
+          <div class="action-icon">📊</div>
+          <div class="action-title">Statistics</div>
+          <div class="action-desc">View your progress and achievements</div>
+          <button class="btn-action btn-primary" onclick="openStatistics()">View Stats</button>
+        </div>
+
+        <div class="action-card">
+          <div class="action-icon">📈</div>
+          <div class="action-title">Hamza Analytics</div>
+          <div class="action-desc">Open Hamza's analytics dashboard</div>
+          <button class="btn-action btn-primary" onclick="openMyAnalytics()">Open Analytics</button>
+        </div>
+
+        <div class="action-card">
+          <div class="action-icon">🛠️</div>
+          <div class="action-title">Edit Profile</div>
+          <div class="action-desc">Update your info and avatar</div>
+          <button class="btn-action btn-success" onclick="showEditProfileModal()">Edit</button>
+        </div>
+
+        <div class="action-card">
+          <div class="action-icon">❌⭕</div>
+          <div class="action-title">X O vs Bot</div>
+          <div class="action-desc">Offline 1v1 against computer</div>
+          <button class="btn-action btn-success" onclick="openXoBotGame()">Play X O</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-left">
+      <div style="width: 32px; height: 32px; border-radius: 10px; background: linear-gradient(135deg,var(--yellow),#FF9500); display: flex; align-items: center; justify-content: center;">🎲</div>
+      <span class="brand" style="font-size: 1.2rem;">LudoX</span>
+      <span style="font-size: 0.875rem; font-weight: 700; color: var(--text);">© 2026 All rights reserved</span>
+    </div>
+    <div class="footer-links">
+      <a href="/privacy">Privacy Policy</a>
+      <a href="/terms">Terms of Service</a>
+      <a href="/contact">Contact</a>
+    </div>
+  </footer>
+
+  <!-- Create Room Modal -->
+  <div id="createRoomModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-title">🎯 Create Game Room</div>
+      <div class="form-group">
+        <label>Number of Players</label>
+        <div class="radio-group">
+          <label class="radio-label">
+            <input type="radio" name="playerCount" value="2" checked>
+            1v1 (2 Players)
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="playerCount" value="4">
+            4 Players
+          </label>
+        </div>
+      </div>
+      <div class="btn-group">
+        <button class="btn-cancel" onclick="closeCreateRoomModal()">Cancel</button>
+        <button class="btn-action btn-success" style="flex: 2;" onclick="createRoom()">Create Room</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Join Room Modal -->
+  <div id="joinRoomModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-title">🚪 Join Game Room</div>
+      <div class="form-group">
+        <label>Room Code</label>
+        <input type="text" id="roomCodeInput" placeholder="Enter 6-character code" maxlength="6">
+      </div>
+      <div class="btn-group">
+        <button class="btn-cancel" onclick="closeJoinRoomModal()">Cancel</button>
+        <button class="btn-action btn-warning" style="flex: 2;" onclick="joinRoom()">Join Room</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Profile Modal -->
+  <div id="editProfileModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-title">🛠️ Edit Profile</div>
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" id="editName" placeholder="Your name">
+      </div>
+      <div class="form-group">
+        <label>Nickname</label>
+        <input type="text" id="editNickname" placeholder="Your nickname">
+      </div>
+      <div class="form-group">
+        <label>Country</label>
+        <input type="text" id="editCountry" placeholder="Your country">
+      </div>
+      <div class="form-group">
+        <label>Gender</label>
+        <input type="text" id="editGender" placeholder="Your gender">
+      </div>
+      <div class="form-group">
+        <label>Age</label>
+        <input type="text" id="editAge" placeholder="Your age">
+      </div>
+      <div class="form-group">
+        <label>Avatar (optional)</label>
+        <input type="file" id="editAvatar" accept="image/*">
+      </div>
+      <div class="btn-group">
+        <button class="btn-cancel" onclick="closeEditProfileModal()">Cancel</button>
+        <button class="btn-action btn-success" style="flex: 2;" onclick="saveProfileUpdates()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const email = params.get("email");
+    const token = params.get("token");
+    let currentUser = null;
+
+    async function loadProfile() {
+      if (!email) {
+        alert("Missing authentication. Redirecting to login...");
+        window.location.href = "/login";
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/users/me?email=${encodeURIComponent(email)}`);
+        if (!res.ok) {
+          throw new Error("Failed to load profile");
+        }
+
+        const user = await res.json();
+        currentUser = user;
+        
+        // Update profile info
+        document.getElementById("profileName").innerText = user.nickname || user.email;
+        document.getElementById("profileMeta").innerText = `${user.country || "Country N/A"} • ${user.age || "-"} years • ${user.gender || "N/A"}`;
+        
+        // Update stats
+        document.getElementById("levelCount").innerText = user.level || 1;
+        document.getElementById("xpCount").innerText = `${user.xp || 0}/${user.totalXpNeeded || 100}`;
+        document.getElementById("winsCount").innerText = user.wins || 0;
+        document.getElementById("lossesCount").innerText = user.losses || 0;
+        document.getElementById("drawsCount").innerText = user.draws || 0;
+        document.getElementById("matchesCount").innerText = user.matches || 0;
+        
+        // Update avatars
+        const avatarUrl = user.profileImageUrl || "/default-avatar.svg";
+        document.getElementById("profileAvatar").src = avatarUrl;
+        document.getElementById("navAvatar").src = avatarUrl;
+        
+        document.getElementById("profileAvatar").onerror = () => {
+          document.getElementById("profileAvatar").src = "/default-avatar.svg";
+        };
+        document.getElementById("navAvatar").onerror = () => {
+          document.getElementById("navAvatar").src = "/default-avatar.svg";
+        };
+      } catch (err) {
+        alert("Error loading profile: " + err.message);
+      }
+    }
+
+    function logout() {
+      if (confirm("Are you sure you want to logout?")) {
+        window.location.href = "/login";
+      }
+    }
+
+    function playAgainstBots() {
+      window.location.href = `/game?token=${token}&multiplayer=false&gameType=1v1`;
+    }
+
+    function showEditProfileModal() {
+      if (!currentUser) {
+        alert("Profile is still loading. Please try again.");
+        return;
+      }
+      document.getElementById("editName").value = currentUser.name || "";
+      document.getElementById("editNickname").value = currentUser.nickname || "";
+      document.getElementById("editCountry").value = currentUser.country || "";
+      document.getElementById("editGender").value = currentUser.gender || "";
+      document.getElementById("editAge").value = currentUser.age || "";
+      document.getElementById("editAvatar").value = "";
+      document.getElementById("editProfileModal").style.display = "flex";
+    }
+
+    function closeEditProfileModal() {
+      document.getElementById("editProfileModal").style.display = "none";
+    }
+
+    async function saveProfileUpdates() {
+      try {
+        const formData = new FormData();
+        formData.append("name", document.getElementById("editName").value.trim());
+        formData.append("nickname", document.getElementById("editNickname").value.trim());
+        formData.append("country", document.getElementById("editCountry").value.trim());
+        formData.append("gender", document.getElementById("editGender").value.trim());
+        formData.append("age", document.getElementById("editAge").value.trim());
+
+        const avatarFile = document.getElementById("editAvatar").files[0];
+        if (avatarFile) {
+          formData.append("profile", avatarFile);
+        }
+
+        const res = await fetch(`/api/users/me?token=${encodeURIComponent(token || "")}`, {
+          method: "PUT",
+          body: formData
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.message || "Failed to update profile");
+        }
+
+        currentUser = data;
+        closeEditProfileModal();
+        await loadProfile();
+        alert("✅ Profile updated successfully");
+      } catch (err) {
+        alert("Error updating profile: " + err.message);
+      }
+    }
+
+    function openXoBotGame() {
+      window.location.href = `/xo?token=${encodeURIComponent(token || "")}&email=${encodeURIComponent(email || "")}`;
+    }
+
+    function openStatistics() {
+      window.location.href = `/stats.html?token=${encodeURIComponent(token || "")}&email=${encodeURIComponent(email || "")}`;
+    }
+
+    function calculateElo(wins, losses) {
+      const safeWins = Number(wins || 0);
+      const safeLosses = Number(losses || 0);
+      return Math.max(100, 1000 + (safeWins * 30) - (safeLosses * 15));
+    }
+
+    function openMyAnalytics() {
+      if (!currentUser) {
+        alert("Profile is still loading. Please try again.");
+        return;
+      }
+
+      const profilePayload = {
+        userId: String(currentUser.id || ""),
+        email: currentUser.email || email || "",
+        nickname: currentUser.nickname || "",
+        name: currentUser.name || currentUser.nickname || "",
+        age: String(currentUser.age || ""),
+        gender: currentUser.gender || "",
+        country: currentUser.country || "",
+        wins: Number(currentUser.wins || 0),
+        losses: Number(currentUser.losses || 0),
+        draws: Number(currentUser.draws || 0),
+        matches: Number(currentUser.matches || 0),
+        elo: calculateElo(currentUser.wins, currentUser.losses),
+        profileImageUrl: currentUser.profileImageUrl || ""
+      };
+
+      window.localStorage.setItem("playerProfileData", JSON.stringify(profilePayload));
+
+      const analyticsParams = new URLSearchParams({
+        token: token || "",
+        userId: profilePayload.userId,
+        email: profilePayload.email,
+        nickname: profilePayload.nickname,
+        name: profilePayload.name,
+        age: profilePayload.age,
+        gender: profilePayload.gender,
+        country: profilePayload.country,
+        wins: String(profilePayload.wins),
+        losses: String(profilePayload.losses),
+        draws: String(profilePayload.draws),
+        matches: String(profilePayload.matches),
+        elo: String(profilePayload.elo),
+        profileImageUrl: profilePayload.profileImageUrl
+      });
+
+      window.location.href = `/leaderboard?${analyticsParams.toString()}`;
+    }
+
+    function showCreateRoomModal() {
+      document.getElementById("createRoomModal").style.display = "flex";
+    }
+
+    function closeCreateRoomModal() {
+      document.getElementById("createRoomModal").style.display = "none";
+    }
+
+    async function createRoom() {
+      const maxPlayers = document.querySelector('input[name="playerCount"]:checked').value;
+      
+      try {
+        const res = await fetch('/api/rooms/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, maxPlayers })
+        });
+        const data = await res.json();
+        if (data.roomCode) {
+          closeCreateRoomModal();
+          const gameType = maxPlayers === "2" ? "1v1" : "4-player";
+          alert(`🎉 Room created!\n\nCode: ${data.roomCode}\n\nShare this with other players to join.`);
+          window.location.href = `/game?token=${token}&email=${encodeURIComponent(email)}&roomCode=${data.roomCode}&multiplayer=true&gameType=${gameType}`;
+        } else {
+          alert(data.message || "Failed to create room");
+        }
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    }
+
+    function showJoinRoomModal() {
+      document.getElementById("joinRoomModal").style.display = "flex";
+      document.getElementById("roomCodeInput").focus();
+    }
+
+    function closeJoinRoomModal() {
+      document.getElementById("joinRoomModal").style.display = "none";
+    }
+
+    async function joinRoom() {
+      const roomCode = document.getElementById("roomCodeInput").value.trim().toUpperCase();
+      
+      if (!roomCode) {
+        alert("Please enter a room code");
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/rooms/join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ roomCode, email })
+        });
+        const data = await res.json();
+        if (data.room) {
+          closeJoinRoomModal();
+          const gameType = data.room.maxPlayers === 2 ? "1v1" : "4-player";
+          window.location.href = `/game?token=${token}&email=${encodeURIComponent(email)}&roomCode=${roomCode}&multiplayer=true&gameType=${gameType}`;
+        } else {
+          alert(data.message || "Failed to join room");
+        }
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    }
+
+    // Allow Enter key to submit room code
+    document.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && document.getElementById("joinRoomModal").style.display === "flex") {
+        joinRoom();
+      }
+    });
+
+    // Close modals on background click
+    document.getElementById("createRoomModal").addEventListener('click', (e) => {
+      if (e.target.id === "createRoomModal") closeCreateRoomModal();
+    });
+    document.getElementById("joinRoomModal").addEventListener('click', (e) => {
+      if (e.target.id === "joinRoomModal") closeJoinRoomModal();
+    });
+    document.getElementById("editProfileModal").addEventListener('click', (e) => {
+      if (e.target.id === "editProfileModal") closeEditProfileModal();
+    });
+
+    loadProfile();
+  </script>
+
+</body>
+</html>

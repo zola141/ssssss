@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" fill="#0D1B3E"/>
+  <g transform="translate(256, 256)">
+    <!-- Ludo board representation -->
+    <rect x="-200" y="-200" width="400" height="400" fill="#112247" rx="20"/>
+    
+    <!-- Red quadrant -->
+    <path d="M -150,-150 L -150,-50 L -50,-50 L -50,-150 Z" fill="#FF4757" opacity="0.8"/>
+    <circle cx="-100" cy="-100" r="20" fill="#0D1B3E"/>
+    
+    <!-- Blue quadrant -->
+    <path d="M 50,-150 L 150,-150 L 150,-50 L 50,-50 Z" fill="#2E86FF" opacity="0.8"/>
+    <circle cx="100" cy="-100" r="20" fill="#0D1B3E"/>
+    
+    <!-- Green quadrant -->
+    <path d="M 50,50 L 150,50 L 150,150 L 50,150 Z" fill="#2ED573" opacity="0.8"/>
+    <circle cx="100" cy="100" r="20" fill="#0D1B3E"/>
+    
+    <!-- Yellow quadrant -->
+    <path d="M -150,50 L -50,50 L -50,150 L -150,150 Z" fill="#FFD32A" opacity="0.8"/>
+    <circle cx="-100" cy="100" r="20" fill="#0D1B3E"/>
+    
+    <!-- Center cross -->
+    <path d="M -40,0 L 40,0 L 40,40 L 0,40 L 0,-40 L 40,-40 L 40,0" fill="#FFFFFF" opacity="0.3"/>
+    
+    <!-- LudoX text -->
+    <text x="0" y="220" font-family="'Fredoka One', sans-serif" font-size="60" fill="#FFFFFF" text-anchor="middle" font-weight="bold">LudoX</text>
+  </g>
+</svg>
