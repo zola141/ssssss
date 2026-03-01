@@ -220,23 +220,20 @@ function isPathBlocked(color, fromPos, toPos, state) {
     if (cellType.type === "center") continue;
     
 
-    let count = 0;
-    let blockingColor = null;
-    
+    const colorCounts = {};
+
     Object.keys(state).forEach(c => {
       state[c].forEach(p => {
         if (p >= 0 && p < PATHS[c].length) {
           const pos = PATHS[c][p];
           if (pos && pos.x === cell.x && pos.y === cell.y) {
-            count++;
-            if (count >= 2 && !blockingColor) blockingColor = c;
+            colorCounts[c] = (colorCounts[c] || 0) + 1;
           }
         }
       });
     });
-    
 
-    if (count >= 2) {
+    if (Object.values(colorCounts).some((count) => count >= 2)) {
       return true;
     }
   }
@@ -649,6 +646,7 @@ export default function Game({ players, bots, gameType, multiplayer }) {
       }
 
       lastRemoteMoveSeqRef.current[data.email] = incomingSeq;
+      setPions(data.pions);
       setRemotePions((prev) => ({
         ...prev,
         [data.email]: data.pions
@@ -882,47 +880,8 @@ export default function Game({ players, bots, gameType, multiplayer }) {
 
 
   const allPionsForRendering = useMemo(() => {
-    if (!multiplayer) return pions;
-    
-    const params = new URLSearchParams(window.location.search);
-    const currentEmail = params.get("email");
-
-    const merged = {
-      red: [-1, -1, -1, -1],
-      green: [-1, -1, -1, -1],
-      blue: [-1, -1, -1, -1],
-      yellow: [-1, -1, -1, -1],
-    };
-    
-    // Find the current player's color by matching email
-    let currentPlayerColor = playerColor;
-    if (!currentPlayerColor && currentEmail) {
-      // If playerColor state is not set, find color from allPlayers by email
-      for (const [color, player] of Object.entries(allPlayers)) {
-        if (player && player.email === currentEmail) {
-          currentPlayerColor = color;
-          break;
-        }
-      }
-    }
-    // Add current player's pions
-    if (currentPlayerColor && pions[currentPlayerColor]) {
-      merged[currentPlayerColor] = [...pions[currentPlayerColor]];
-    }
-    
-
-    // Add opponent pions from remotePions
-    Object.entries(allPlayers).forEach(([color, player]) => {
-      if (color !== currentPlayerColor && player && remotePions[player.email]) {
-        const remotePionsForPlayer = remotePions[player.email];
-        if (remotePionsForPlayer && remotePionsForPlayer[color]) {
-          merged[color] = [...remotePionsForPlayer[color]];
-        }
-      }
-    });
-    
-    return merged;
-  }, [multiplayer, pions, remotePions, playerColor, allPlayers]);
+    return pions;
+  }, [pions]);
   
   useEffect(() => {
     diceAudioRef.current = new Audio(diceSound);
@@ -973,8 +932,8 @@ const BOT_PLAYERS = useMemo(() => {
 
 const canControlColor = (color) => {
   if (multiplayer) {
-
-    return playerColor === color;
+    // In multiplayer, only allow rolling if it's this player's turn (activePlayer matches their color)
+    return playerColor === color && PLAYERS[activePlayer] === color;
   }
 
   return activePlayer >= 0 && PLAYERS[activePlayer] === color && !BOT_PLAYERS.includes(color);
@@ -1182,20 +1141,20 @@ const isBlocked = (fromPos, toPos, color, state) => {
 
     if (cellType.type === "center") continue;
 
-    let count = 0;
- 
+    const colorCounts = {};
+
     Object.keys(state).forEach(c => {
       state[c].forEach(p => {
         if (p >= 0) {
           const pos = PATHS[c][p];
           if (pos && pos.x === cell.x && pos.y === cell.y) {
-            count++;
+            colorCounts[c] = (colorCounts[c] || 0) + 1;
           }
         }
       });
     });
 
-    if (count >= 2) 
+    if (Object.values(colorCounts).some((count) => count >= 2)) 
     {
         return true; 
     }
@@ -1349,6 +1308,7 @@ const cellType = getCellType(targetCell.x, targetCell.y);
 
 const newState = { ...prev };
 
+let captureOccurred = false;
 
     if (cellType.type !== "secure") {
       Object.keys(prev).forEach(enemy => {
@@ -1356,7 +1316,8 @@ const newState = { ...prev };
         prev[enemy].forEach((p, i) => {
           if (p >= 0 && PATHS[enemy][p].x === targetCell.x && PATHS[enemy][p].y === targetCell.y) {
             newState[enemy][i] = -1;
-            setBonus(10); 
+            setBonus(10);
+            captureOccurred = true;
           }
         });
       });
@@ -1367,6 +1328,16 @@ const newState = { ...prev };
 
     emitPlayerMove(finalState, color);
     
+    // After move: check if we need to pass turn
+    // In 1v1, player should get 2 rolls per turn
+    // Only pass turn after 2 rolls are made
+    setTimeout(() => {
+      const currentRollCount = rollCount;
+      if (multiplayer && currentRollCount >= 2 && dice !== 6) {
+        // This was the 2nd roll and wasn't a 6, pass turn
+        nextPlayer();
+      }
+    }, 500);
 
     setTimeout(() => {
       // Original win condition: all pieces must reach the end
