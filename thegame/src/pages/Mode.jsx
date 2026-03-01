@@ -2,7 +2,7 @@ import "../styles/menu.css";
 
 
 export default function Mode({ playersCount, setGameConfig }) {
-  const gameType = playersCount === 2 ? "1v1" : "4-player";
+  const gameType = "1v1";
   return (
     <div className="page">
       <h1 className="title">Mode de jeu</h1>
@@ -12,7 +12,7 @@ export default function Mode({ playersCount, setGameConfig }) {
           className="card"
           onClick={() =>
             setGameConfig({
-              players: playersCount === 2 ? ["red", "yellow"] : ["red", "green", "blue", "yellow"],
+              players: ["red", "yellow"],
               bots: [],
               gameType,
               multiplayer: true
@@ -28,7 +28,7 @@ export default function Mode({ playersCount, setGameConfig }) {
           onClick={() =>
             setGameConfig({
               players: ["red"],
-              bots: playersCount === 2 ? ["yellow"] : ["green", "blue", "yellow"],
+              bots: ["yellow"],
               gameType,
               multiplayer: false
             })

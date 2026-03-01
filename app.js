@@ -69,8 +69,6 @@ const markUserOffline = (email) => {
 
 const isUserOnline = (email) => (onlineUsers.get(email) || 0) > 0;
 
-const getTurnOrder = (gameType) => (gameType === "1v1" ? ["red", "yellow"] : ["red", "green", "blue", "yellow"]);
-
 /* ========================
    MIDDLEWARE
 ======================== */
@@ -371,9 +369,8 @@ app.post("/api/rooms/join", async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Assign color based on player count
-    const colorMap = { 2: ["red", "yellow"], 4: ["red", "green", "blue", "yellow"] };
-    const colors = colorMap[room.maxPlayers];
+    // Assign color based on player count (only 1v1 supported)
+    const colors = ["red", "yellow"];
     const playerColor = colors[room.players.length];
 
     room.players.push({
@@ -728,7 +725,8 @@ const gameRoomSchema = new mongoose.Schema({
   maxPlayers: {
     type: Number,
     required: true,
-    enum: [2, 4]
+    enum: [2],
+    default: 2
   },
   createdBy: {
     type: String,
@@ -1275,25 +1273,25 @@ app.post("/login", async (req, res) => {
 io.on("connection", (socket) => {
   console.log("Player connected:", socket.id);
 
-  // Player joins a game room (1v1 or 4-player)
+  // Player joins a game room (1v1 only)
   socket.on("join-room", (data) => {
-    const { email, gameType, token } = data; // gameType: "1v1" or "4-player"
+    const { email, gameType, token } = data;
     
     if (!authTokens.has(token)) {
       socket.emit("error", "Invalid token");
       return;
     }
 
-    // Find or create a room
+    // Find or create a 1v1 room
     let room = Array.from(gameRooms.values()).find(
-      (r) => r.gameType === gameType && r.players.length < (gameType === "1v1" ? 2 : 4) && r.status === "waiting"
+      (r) => r.gameType === "1v1" && r.players.length < 2 && r.status === "waiting"
     );
 
     if (!room) {
       const roomId = Math.random().toString(36).substring(7);
       room = {
         id: roomId,
-        gameType,
+        gameType: "1v1",
         players: [],
         status: "waiting",
         gameState: {}
@@ -1302,22 +1300,22 @@ io.on("connection", (socket) => {
     }
 
     // Add player to room
-    const turnOrder = getTurnOrder(gameType);
+    const turnOrder = ["red", "yellow"];
     const playerIndex = room.players.length;
     const playerColor = turnOrder[playerIndex];
     room.players.push({ email, socketId: socket.id, userId: authTokens.get(token).userId, color: playerColor });
     playerSockets.set(socket.id, { email, roomId: room.id });
 
     socket.join(room.id);
-    socket.emit("room-joined", { roomId: room.id, players: room.players, playerIndex, playerCount: room.players.length, gameType });
+    socket.emit("room-joined", { roomId: room.id, players: room.players, playerIndex, playerCount: room.players.length, gameType: "1v1" });
 
     // Notify others in room
-    io.to(room.id).emit("players-updated", { players: room.players, playerCount: room.players.length, gameType });
+    io.to(room.id).emit("players-updated", { players: room.players, playerCount: room.players.length, gameType: "1v1" });
 
-    // Start game if room is full
-    if (room.players.length === (gameType === "1v1" ? 2 : 4)) {
+    // Start game if room is full (2 players)
+    if (room.players.length === 2) {
       room.status = "playing";
-      room.turnOrder = getTurnOrder(gameType);
+      room.turnOrder = turnOrder;
       room.turnIndex = 0;
       io.to(room.id).emit("game-start", { players: room.players });
       io.to(room.id).emit("turn-update", { activeColor: room.turnOrder[room.turnIndex], turnIndex: room.turnIndex, turnOrder: room.turnOrder });
@@ -1356,13 +1354,12 @@ io.on("connection", (socket) => {
       // Create internal room in gameRooms if not exists
       let internalRoom = Array.from(gameRooms.values()).find(r => r.roomCode === roomCode);
       if (!internalRoom) {
-        console.log(`[join-room-code] Creating internal room for ${roomCode}, maxPlayers=${room.maxPlayers}`);
-        const colorMap = { 2: ["red", "yellow"], 4: ["red", "green", "blue", "yellow"] };
-        const colors = colorMap[room.maxPlayers] || colorMap[4];
+        console.log(`[join-room-code] Creating internal room for ${roomCode}, maxPlayers=2`);
+        const colors = ["red", "yellow"];
         internalRoom = {
           id: roomCode,
           roomCode,
-          gameType: room.maxPlayers === 2 ? "1v1" : "4-player",
+          gameType: "1v1",
           players: room.players.map((player, index) => ({
             email: player.email,
             socketId: null,
@@ -1373,7 +1370,7 @@ io.on("connection", (socket) => {
           })),
           status: "waiting",
           gameState: {},
-          maxPlayers: room.maxPlayers
+          maxPlayers: 2
         };
         console.log(`[join-room-code] Internal room gameType set to: ${internalRoom.gameType}`);
         gameRooms.set(roomCode, internalRoom);
@@ -1381,8 +1378,7 @@ io.on("connection", (socket) => {
         console.log(`[join-room-code] Using existing internal room: gameType=${internalRoom.gameType}, maxPlayers=${internalRoom.maxPlayers}`);
         
         // UPDATE: Sync internal room with database room players
-        const colorMap = { 2: ["red", "yellow"], 4: ["red", "green", "blue", "yellow"] };
-        const colors = colorMap[room.maxPlayers] || colorMap[4];
+        const colors = ["red", "yellow"];
         
         // Add any new players from database that aren't in internal room yet
         room.players.forEach((dbPlayer, index) => {
@@ -1403,8 +1399,7 @@ io.on("connection", (socket) => {
 
       // Get player info
       const user = await User.findOne({ email });
-      const colorMap = { 2: ["red", "yellow"], 4: ["red", "green", "blue", "yellow"] };
-      const colors = colorMap[room.maxPlayers] || colorMap[4];
+      const colors = ["red", "yellow"];
 
       const existingIndex = internalRoom.players.findIndex((p) => p.email === email);
       if (existingIndex < 0) {
@@ -1444,19 +1439,18 @@ io.on("connection", (socket) => {
       // Notify others in room
       io.to(roomCode).emit("players-updated", { players: internalRoom.players, playerCount: internalRoom.players.length, gameType: internalRoom.gameType });
 
-      console.log(`Player ${email} joined room ${roomCode} (${internalRoom.players.length}/${room.maxPlayers})`);
+      console.log(`Player ${email} joined room ${roomCode} (${internalRoom.players.length}/2)`);
 
       // Start game when all players required by maxPlayers are connected
       const connectedPlayers = internalRoom.players.filter((player) => !!player.socketId).length;
       const totalPlayers = internalRoom.players.length;
-      console.log(`[join-room-code] Connected: ${connectedPlayers}/${totalPlayers}, maxPlayers: ${room.maxPlayers}, status: ${internalRoom.status}`);
+      console.log(`[join-room-code] Connected: ${connectedPlayers}/${totalPlayers}, maxPlayers: 2, status: ${internalRoom.status}`);
       
-      // For 4-player rooms: require exactly 4 players
-      // For 2-player rooms: require exactly 2 players
-      if (connectedPlayers === room.maxPlayers) {
+      // Only support 1v1: require exactly 2 players
+      if (connectedPlayers === 2) {
         if (internalRoom.status !== "playing") {
           internalRoom.status = "playing";
-          internalRoom.turnOrder = getTurnOrder(internalRoom.gameType);
+          internalRoom.turnOrder = ["red", "yellow"];
           internalRoom.turnIndex = 0;
           console.log(`✅ [GAME-START] Room ${roomCode} is FULL! Starting game with ${connectedPlayers} players, gameType: ${internalRoom.gameType}`);
           console.log(`✅ [GAME-START] Emitting game-start event to room ${roomCode}`);
@@ -1496,7 +1490,14 @@ io.on("connection", (socket) => {
         const currentPlayer = room.players.find((p) => p.email === playerInfo.email);
         if (!currentPlayer) return;
         if (room.turnOrder && room.turnOrder[room.turnIndex] !== currentPlayer.color) return;
-        io.to(room.id).emit("move-update", { email: playerInfo.email, ...data });
+        room.moveSeq = (room.moveSeq || 0) + 1;
+        io.to(room.id).emit("move-update", {
+          email: playerInfo.email,
+          playerColor: currentPlayer.color,
+          pions: data?.pions,
+          moveSeq: room.moveSeq,
+          serverTs: Date.now()
+        });
       }
     }
   });
@@ -1788,15 +1789,16 @@ function startServer(attemptPort = port) {
         return;
       }
 
+      // Only support 1v1 games
       let room = Array.from(gameRooms.values()).find(
-        (r) => r.gameType === gameType && r.players.length < (gameType === "1v1" ? 2 : 4) && r.status === "waiting"
+        (r) => r.gameType === "1v1" && r.players.length < 2 && r.status === "waiting"
       );
 
       if (!room) {
         const roomId = Math.random().toString(36).substring(7);
         room = {
           id: roomId,
-          gameType,
+          gameType: "1v1",
           players: [],
           status: "waiting",
           gameState: {}
@@ -1804,20 +1806,32 @@ function startServer(attemptPort = port) {
         gameRooms.set(roomId, room);
       }
 
-      const turnOrder = getTurnOrder(gameType);
+      // Hardcoded turn order for 1v1
+      const turnOrder = ["red", "yellow"];
       const playerIndex = room.players.length;
       const playerColor = turnOrder[playerIndex];
       room.players.push({ email, socketId: socket.id, userId: authTokens.get(token).userId, color: playerColor });
       playerSockets.set(socket.id, { email, roomId: room.id });
 
       socket.join(room.id);
-      socket.emit("room-joined", { roomId: room.id, players: room.players, playerIndex, playerCount: room.players.length, gameType });
+      socket.emit("room-joined", { roomId: room.id, players: room.players, playerIndex, playerCount: room.players.length, gameType: "1v1", gameInProgress: room.status === "playing" });
 
-      currentIo.to(room.id).emit("players-updated", { players: room.players, playerCount: room.players.length, gameType });
+      // Clean players array (remove non-serializable properties) before emitting
+      const cleanPlayersQuick = room.players.map(p => ({
+        email: p.email,
+        socketId: p.socketId,
+        nickname: p.nickname,
+        color: p.color,
+        profileImageUrl: p.profileImageUrl,
+        userId: p.userId
+      }));
 
-      if (room.players.length === (gameType === "1v1" ? 2 : 4)) {
+      currentIo.to(room.id).emit("players-updated", { players: cleanPlayersQuick, playerCount: cleanPlayersQuick.length, gameType: "1v1" });
+
+      // Start game when room is full (2 players)
+      if (room.players.length === 2) {
         room.status = "playing";
-        room.turnOrder = getTurnOrder(gameType);
+        room.turnOrder = turnOrder;
         room.turnIndex = 0;
         currentIo.to(room.id).emit("game-start", { players: room.players });
         currentIo.to(room.id).emit("turn-update", { activeColor: room.turnOrder[room.turnIndex], turnIndex: room.turnIndex, turnOrder: room.turnOrder });
@@ -1850,15 +1864,15 @@ function startServer(attemptPort = port) {
           return;
         }
 
-        const colorMap = { 2: ["red", "yellow"], 4: ["red", "green", "blue", "yellow"] };
-        const colors = colorMap[room.maxPlayers] || colorMap[4];
+        // Only support 1v1 games (maxPlayers = 2)
+        const colors = ["red", "yellow"];
 
         let internalRoom = Array.from(gameRooms.values()).find((r) => r.roomCode === roomCode);
         if (!internalRoom) {
           internalRoom = {
             id: roomCode,
             roomCode,
-            gameType: room.maxPlayers === 2 ? "1v1" : "4-player",
+            gameType: "1v1",
             players: room.players.map((player, index) => ({
               email: player.email,
               socketId: null,
@@ -1869,7 +1883,7 @@ function startServer(attemptPort = port) {
             })),
             status: "waiting",
             gameState: {},
-            maxPlayers: room.maxPlayers
+            maxPlayers: 2
           };
           gameRooms.set(roomCode, internalRoom);
         }
@@ -1881,6 +1895,14 @@ function startServer(attemptPort = port) {
         if (playerIndex < 0) {
           socket.emit("error", "Player not found in room");
           return;
+        }
+
+        // Clear grace period timer if player reconnects
+        if (internalRoom.players[playerIndex]?.gracePeriodTimer) {
+          clearTimeout(internalRoom.players[playerIndex].gracePeriodTimer);
+          delete internalRoom.players[playerIndex].gracePeriodTimer;
+          delete internalRoom.players[playerIndex].disconnectedAt;
+          console.log(`[Reconnection] Player ${email} reconnected - grace period timer cleared`);
         }
 
         internalRoom.players[playerIndex] = {
@@ -1901,19 +1923,30 @@ function startServer(attemptPort = port) {
           players: internalRoom.players,
           playerIndex,
           playerCount: internalRoom.players.length,
-          gameType: internalRoom.gameType
+          gameType: internalRoom.gameType,
+          gameInProgress: internalRoom.status === "playing"
         });
 
+        // Clean players array (remove non-serializable properties) before emitting
+        const cleanPlayersEmit = internalRoom.players.map(p => ({
+          email: p.email,
+          socketId: p.socketId,
+          nickname: p.nickname,
+          color: p.color,
+          profileImageUrl: p.profileImageUrl,
+          userId: p.userId
+        }));
+
         currentIo.to(roomCode).emit("players-updated", {
-          players: internalRoom.players,
-          playerCount: internalRoom.players.length,
+          players: cleanPlayersEmit,
+          playerCount: cleanPlayersEmit.length,
           gameType: internalRoom.gameType
         });
 
         const connectedPlayers = internalRoom.players.filter((player) => !!player.socketId).length;
-        if (connectedPlayers === room.maxPlayers && internalRoom.status !== "playing") {
+        if (connectedPlayers === 2 && internalRoom.status !== "playing") {
           internalRoom.status = "playing";
-          internalRoom.turnOrder = getTurnOrder(internalRoom.gameType);
+          internalRoom.turnOrder = ["red", "yellow"];
           internalRoom.turnIndex = 0;
           currentIo.to(roomCode).emit("game-start", {
             players: internalRoom.players,
@@ -1937,6 +1970,35 @@ function startServer(attemptPort = port) {
       }
     });
 
+    socket.on("request-game-state", (data) => {
+      const { email, roomId } = data;
+      const room = gameRooms.get(roomId);
+      
+      if (!room) {
+        console.log("[request-game-state] Room not found:", roomId);
+        return;
+      }
+
+      const playerInfo = room.players.find((p) => p.email === email);
+      if (!playerInfo) {
+        console.log("[request-game-state] Player not found in room:", email, roomId);
+        return;
+      }
+
+      // Build game state snapshot
+      const gameState = {
+        pions: room.gameState?.pions || {},
+        remotePions: room.gameState?.remotePions || {},
+        activeColor: room.turnOrder?.[room.turnIndex] || null,
+        turnIndex: room.turnIndex ?? 0,
+        dice: room.gameState?.dice || null,
+        bonus: room.gameState?.bonus || 0
+      };
+
+      console.log("[request-game-state] Sending game state to", email, "in room", roomId, gameState);
+      socket.emit("game-state-recovery", gameState);
+    });
+
     socket.on("player-move", (data) => {
       const playerInfo = playerSockets.get(socket.id);
       if (playerInfo) {
@@ -1946,7 +2008,21 @@ function startServer(attemptPort = port) {
           const currentPlayer = room.players.find((p) => p.email === playerInfo.email);
           if (!currentPlayer) return;
           if (room.turnOrder && room.turnOrder[room.turnIndex] !== currentPlayer.color) return;
-          currentIo.to(room.id).emit("move-update", { email: playerInfo.email, ...data });
+          
+          // Persist game state for recovery on reconnect
+          room.gameState = room.gameState || {};
+          room.gameState.pions = data?.pions;
+          room.gameState.lastMoveEmail = playerInfo.email;
+          room.gameState.lastMoveTime = Date.now();
+          
+          room.moveSeq = (room.moveSeq || 0) + 1;
+          currentIo.to(room.id).emit("move-update", {
+            email: playerInfo.email,
+            playerColor: currentPlayer.color,
+            pions: data?.pions,
+            moveSeq: room.moveSeq,
+            serverTs: Date.now()
+          });
         }
       }
     });
@@ -2162,11 +2238,48 @@ function startServer(attemptPort = port) {
           const disconnectedIndex = room.players.findIndex((p) => p.socketId === socket.id);
           if (disconnectedIndex >= 0) {
             if (room.roomCode) {
+              // Persistent room: set socketId to null but keep player for reconnection
+              // Set reconnection grace period timeout (30 seconds to reconnect)
+              const disconnectedPlayer = room.players[disconnectedIndex];
               room.players[disconnectedIndex] = {
-                ...room.players[disconnectedIndex],
-                socketId: null
+                ...disconnectedPlayer,
+                socketId: null,
+                disconnectedAt: Date.now()
               };
+
+              // Set grace period timer: if player doesn't reconnect in 30s, auto-skip their turn
+              const gracePeriodTimer = setTimeout(() => {
+                const stillDisconnected = room.players[disconnectedIndex]?.socketId === null;
+                if (stillDisconnected && room.status === "playing" && room.turnOrder) {
+                  console.log(`[Grace Period] Player ${disconnectedPlayer.email} still disconnected after 30s - auto-skipping turn`);
+                  const currentColor = room.turnOrder[room.turnIndex];
+                  if (disconnectedPlayer.color === currentColor) {
+                    // Skip to next connected player
+                    let nextTurnIndex = -1;
+                    for (let step = 1; step <= room.turnOrder.length; step++) {
+                      const candidateIndex = (room.turnIndex + step) % room.turnOrder.length;
+                      const candidateColor = room.turnOrder[candidateIndex];
+                      const hasConnectedPlayer = room.players.some((p) => p.color === candidateColor && !!p.socketId);
+                      if (hasConnectedPlayer) {
+                        nextTurnIndex = candidateIndex;
+                        break;
+                      }
+                    }
+                    if (nextTurnIndex >= 0) {
+                      room.turnIndex = nextTurnIndex;
+                      currentIo.to(room.id).emit("turn-update", {
+                        activeColor: room.turnOrder[room.turnIndex],
+                        turnIndex: room.turnIndex,
+                        turnOrder: room.turnOrder
+                      });
+                    }
+                  }
+                }
+              }, 30000);
+
+              room.players[disconnectedIndex].gracePeriodTimer = gracePeriodTimer;
             } else {
+              // Temporary room: remove player immediately
               room.players = room.players.filter((p) => p.socketId !== socket.id);
             }
           }
@@ -2175,7 +2288,8 @@ function startServer(attemptPort = port) {
             const currentColor = room.turnOrder[room.turnIndex];
             const activeConnected = room.players.some((p) => p.color === currentColor && !!p.socketId);
 
-            if (!activeConnected) {
+            // For temporary rooms (no roomCode), immediately skip if active player disconnected
+            if (!activeConnected && !room.roomCode) {
               let nextTurnIndex = -1;
               for (let step = 1; step <= room.turnOrder.length; step++) {
                 const candidateIndex = (room.turnIndex + step) % room.turnOrder.length;
@@ -2198,10 +2312,20 @@ function startServer(attemptPort = port) {
             }
           }
 
-          currentIo.to(room.id).emit("player-left", { email: playerInfo.email, playersLeft: room.players });
+          // Clean players array (remove non-serializable properties like timers) before emitting
+          const cleanPlayers = room.players.map(p => ({
+            email: p.email,
+            socketId: p.socketId,
+            nickname: p.nickname,
+            color: p.color,
+            profileImageUrl: p.profileImageUrl,
+            userId: p.userId
+          }));
+
+          currentIo.to(room.id).emit("player-left", { email: playerInfo.email, playersLeft: cleanPlayers });
           currentIo.to(room.id).emit("players-updated", {
-            players: room.players,
-            playerCount: room.players.filter((p) => !!p.socketId).length,
+            players: cleanPlayers,
+            playerCount: cleanPlayers.filter((p) => !!p.socketId).length,
             gameType: room.gameType
           });
           

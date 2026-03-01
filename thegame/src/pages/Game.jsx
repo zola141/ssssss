@@ -453,8 +453,16 @@ export default function Game({ players, bots, gameType, multiplayer }) {
   const [dmMessages, setDmMessages] = useState([]);
   const [dmInput, setDmInput] = useState("");
   const [animatingPiece, setAnimatingPiece] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState("connected");
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
+  const [reconnectTimeout, setReconnectTimeout] = useState(false);
 
   const diceAudioRef = useRef(null);
+  const isAnimatingRef = useRef(false);
+  const localMoveSeqRef = useRef(0);
+  const lastRemoteMoveSeqRef = useRef({});
+  const reconnectTimeoutRef = useRef(null);
+  const disconnectTimeRef = useRef(null);
 
   useEffect(() => {
     // Always run socket setup if roomCode exists (means multiplayer)
@@ -476,6 +484,14 @@ export default function Game({ players, bots, gameType, multiplayer }) {
     // Register ALL event listeners BEFORE socket connects
     newSocket.on("connect", () => {
       console.log("[Socket] Connected! roomCode:", roomCode, "email:", email, "token:", token);
+      setConnectionStatus("connected");
+      setReconnectAttempt(0);
+      setReconnectTimeout(false);
+      
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
 
       if (roomCode) {
         console.log("[Socket] Emitting join-room-code with data:", { email, roomCode, token });
@@ -486,29 +502,61 @@ export default function Game({ players, bots, gameType, multiplayer }) {
       }
     });
 
+    newSocket.on("connect_error", (error) => {
+      console.error("[Socket] Connection error:", error);
+      setConnectionStatus("connecting");
+      setReconnectAttempt(prev => prev + 1);
+    });
+
+    newSocket.on("reconnect_attempt", (attempt) => {
+      console.log("[Socket] Reconnection attempt:", attempt);
+      setConnectionStatus("reconnecting");
+      setReconnectAttempt(attempt);
+      
+      // After 8 attempts (about 30 seconds), show timeout warning
+      if (attempt >= 8) {
+        setReconnectTimeout(true);
+      }
+    });
+
+    newSocket.on("reconnect_error", (error) => {
+      console.error("[Socket] Reconnection error:", error);
+      setReconnectAttempt(prev => prev + 1);
+    });
+
     newSocket.on("error", (err) => {
       console.error("[Socket] Error:", err);
+      setConnectionStatus("error");
     });
 
     newSocket.on("disconnect", (reason) => {
       console.log("[Socket] Disconnected:", reason);
+      disconnectTimeRef.current = Date.now();
+      setConnectionStatus("disconnected");
+      
+      // Set a hard timeout - if not reconnected in 60 seconds, fail
+      reconnectTimeoutRef.current = setTimeout(() => {
+        console.log("[Socket] Hard reconnection timeout - stopping attempts");
+        setReconnectTimeout(true);
+      }, 60000);
     });
 
     newSocket.on("room-joined", (data) => {
-      console.log("[room-joined] Received data:", data);
+      console.log("[room-joined] *** LISTENER FIRED *** Received data:", data);
+      console.log("[room-joined] IMPORTANT: playerIndex from server:", data.playerIndex, "playerCount:", data.playerCount);
       setRoomId(data.roomId);
       setPlayerIndex(data.playerIndex);
       
 
       const gameTypeToUse = data.gameType || gameType;
-      const finalGameType = gameTypeToUse === "1v1" ? "1v1" : "4-player";
+      const finalGameType = "1v1";
       
       console.log("[room-joined] playerCount:", data.playerCount, "gameTypeFromServer:", data.gameType, "gameTypeFromURL:", gameType, "finalGameType:", finalGameType);
       console.log("[room-joined] Setting resolvedGameType to:", finalGameType);
       setResolvedGameType(finalGameType);
       
 
-      const isOneVOne = finalGameType === "1v1" || data.playerCount === 2;
+      const isOneVOne = true;
       const colorMap = { 
         2: ["red", "yellow"], 
         4: ["red", "green", "blue", "yellow"] 
@@ -518,9 +566,10 @@ export default function Game({ players, bots, gameType, multiplayer }) {
 
       const playerIdx = data.playerIndex ?? 0;
       const assignedColor = colors[playerIdx] || colors[0] || "red";
-      console.log("[room-joined] Assigning color:", assignedColor, "for playerIdx:", playerIdx);
+      console.log("[room-joined] Assigning color:", assignedColor, "for playerIdx:", playerIdx, "colors array:", colors);
       
       setPlayerColor(assignedColor);
+      console.log("[room-joined] *** AFTER setPlayerColor, state should update soon ***");
       
 
       if (isOneVOne) {
@@ -537,6 +586,12 @@ export default function Game({ players, bots, gameType, multiplayer }) {
         setAllPlayers(playersMap);
         console.log("[room-joined] Set allPlayers:", playersMap);
       }
+
+      // Request game state snapshot if game is already in progress (reconnection case)
+      if (data.gameInProgress) {
+        console.log("[room-joined] Game in progress - requesting state recovery");
+        newSocket.emit("request-game-state", { email, roomId: data.roomId });
+      }
       
     });
 
@@ -546,8 +601,7 @@ export default function Game({ players, bots, gameType, multiplayer }) {
       if (data.gameType) {
         setResolvedGameType(data.gameType);
       }
-      const colorMap = { 2: ["red", "yellow"], 4: ["red", "green", "blue", "yellow"] };
-      const colors = colorMap[gameTypeToUse === "1v1" ? 2 : 4] || colorMap[4];
+      const colors = ["red", "yellow"];
       if (data.players) {
         const playersMap = {};
         data.players.forEach((p, idx) => {
@@ -586,14 +640,19 @@ export default function Game({ players, bots, gameType, multiplayer }) {
     });
 
     newSocket.on("move-update", (data) => {
-      console.log("[move-update received] email:", data.email, "pions:", data.pions);
-      if (data.email !== email) {
-        // Only update if it's from the opponent, not ourselves
-        setRemotePions((prev) => ({
-          ...prev,
-          [data.email]: data.pions
-        }));
+      if (!data?.email || !data?.pions) return;
+
+      const incomingSeq = typeof data.moveSeq === "number" ? data.moveSeq : 0;
+      const lastSeqForSender = lastRemoteMoveSeqRef.current[data.email] ?? -1;
+      if (incomingSeq <= lastSeqForSender) {
+        return;
       }
+
+      lastRemoteMoveSeqRef.current[data.email] = incomingSeq;
+      setRemotePions((prev) => ({
+        ...prev,
+        [data.email]: data.pions
+      }));
     });
 
     newSocket.on("dice-rolled", (data) => {
@@ -627,6 +686,26 @@ export default function Game({ players, bots, gameType, multiplayer }) {
     newSocket.on("game-finished", (data) => {
       setGameFinished(true);
       setGameWinner(data.winner);
+    });
+
+    newSocket.on("game-state-recovery", (data) => {
+      console.log("[game-state-recovery] Received:", data);
+      if (data.pions) {
+        setPions(data.pions);
+      }
+      if (data.remotePions) {
+        setRemotePions(data.remotePions);
+      }
+      if (typeof data.activeColor !== "undefined" && data.turnIndex !== undefined) {
+        setActivePlayer(data.turnIndex);
+      }
+      if (data.dice !== undefined) {
+        setDice(data.dice);
+      }
+      if (data.bonus !== undefined) {
+        setBonus(data.bonus);
+      }
+      console.log("[game-state-recovery] Game state restored");
     });
 
     newSocket.on("error", (msg) => {});
@@ -786,19 +865,27 @@ export default function Game({ players, bots, gameType, multiplayer }) {
       .catch(() => {});
   };
   
+  const emitPlayerMove = (stateToSend, colorOverride) => {
+    if (!socket || !multiplayer || !stateToSend) return;
+    const params = new URLSearchParams(window.location.search);
+    const email = params.get("email");
+    const senderColor = colorOverride || playerColor;
+    localMoveSeqRef.current += 1;
+    socket.emit("player-move", {
+      pions: stateToSend,
+      email,
+      playerColor: senderColor,
+      moveSeq: localMoveSeqRef.current,
+      clientTs: Date.now()
+    });
+  };
 
-  useEffect(() => {
-    if (socket && multiplayer && pions && playerColor) {
-      const params = new URLSearchParams(window.location.search);
-      const email = params.get("email");
-      socket.emit("player-move", { pions, email, playerColor });
-    }
-  }, [pions, socket, multiplayer, playerColor]);
-  
 
   const allPionsForRendering = useMemo(() => {
     if (!multiplayer) return pions;
     
+    const params = new URLSearchParams(window.location.search);
+    const currentEmail = params.get("email");
 
     const merged = {
       red: [-1, -1, -1, -1],
@@ -807,14 +894,26 @@ export default function Game({ players, bots, gameType, multiplayer }) {
       yellow: [-1, -1, -1, -1],
     };
     
-
-    if (playerColor && pions[playerColor]) {
-      merged[playerColor] = [...pions[playerColor]];
+    // Find the current player's color by matching email
+    let currentPlayerColor = playerColor;
+    if (!currentPlayerColor && currentEmail) {
+      // If playerColor state is not set, find color from allPlayers by email
+      for (const [color, player] of Object.entries(allPlayers)) {
+        if (player && player.email === currentEmail) {
+          currentPlayerColor = color;
+          break;
+        }
+      }
+    }
+    // Add current player's pions
+    if (currentPlayerColor && pions[currentPlayerColor]) {
+      merged[currentPlayerColor] = [...pions[currentPlayerColor]];
     }
     
 
+    // Add opponent pions from remotePions
     Object.entries(allPlayers).forEach(([color, player]) => {
-      if (color !== playerColor && player && remotePions[player.email]) {
+      if (color !== currentPlayerColor && player && remotePions[player.email]) {
         const remotePionsForPlayer = remotePions[player.email];
         if (remotePionsForPlayer && remotePionsForPlayer[color]) {
           merged[color] = [...remotePionsForPlayer[color]];
@@ -991,8 +1090,14 @@ const centerPawns = (color) => {
     const value = Math.floor(Math.random() * 6) + 1;
 
     if (diceAudioRef.current) {
-      diceAudioRef.current.currentTime = 0;
-      diceAudioRef.current.play();
+      try {
+        diceAudioRef.current.currentTime = 0;
+        diceAudioRef.current.play().catch(() => {
+          // Silently ignore audio play errors - browser might block autoplay
+        });
+      } catch (err) {
+        // Silently ignore audio errors
+      }
     }
 
     setDice(value);
@@ -1152,6 +1257,7 @@ const isBlocked = (fromPos, toPos, color, state) => {
   
 
   const animateStepByStep = async (startPos, steps, color, index, newState) => {
+    isAnimatingRef.current = true;
     setAnimatingPiece({ color, index });
     
     for (let step = 1; step <= steps; step++) {
@@ -1165,8 +1271,11 @@ const isBlocked = (fromPos, toPos, color, state) => {
     }
     
 
+    // Set final state
     setPions(newState);
     setAnimatingPiece(null);
+    isAnimatingRef.current = false;
+    // The useEffect will pick up the final pions state and emit it
   };
   
   setPions(prev => {
@@ -1241,7 +1350,7 @@ const cellType = getCellType(targetCell.x, targetCell.y);
 const newState = { ...prev };
 
 
-    if (cellType.type !== "secure" && cellType.type !== "front_of_home") {
+    if (cellType.type !== "secure") {
       Object.keys(prev).forEach(enemy => {
         if (enemy === color) return;
         prev[enemy].forEach((p, i) => {
@@ -1255,10 +1364,14 @@ const newState = { ...prev };
 
     newPions[index] = pos;
     const finalState = { ...newState, [color]: newPions };
+
+    emitPlayerMove(finalState, color);
     
 
     setTimeout(() => {
+      // Original win condition: all pieces must reach the end
       const won = finalState[color].every(p => p === PATHS[color].length - 1);
+      
       if (won && multiplayer && socket) {
         // Get player emails from allPlayers
         const winnerEmail = allPlayers[color]?.email;
@@ -1385,6 +1498,7 @@ const findPlayablePawn = (color, move) => {
 };
 
   const checkWin = color => {
+    // Original win condition: all pieces must reach the end
     const hasWon = pions[color].every(pos => pos === PATHS[color].length - 1);
     
 
@@ -1445,7 +1559,6 @@ const findPlayablePawn = (color, move) => {
           </a>
           <div className="nav-links">
             <a href="/">Home</a>
-            <a href="/rooms">Rooms</a>
             <a href="/leaderboard">Leaderboard</a>
           </div>
         </div>
@@ -1456,6 +1569,45 @@ const findPlayablePawn = (color, move) => {
 
       <div className="game-page">
         <h1>Parchisi 🎲</h1>
+
+        {/* Connection Status Banner */}
+        {connectionStatus !== "connected" && (
+          <div style={{
+            padding: "12px 16px",
+            marginBottom: "16px",
+            borderRadius: "6px",
+            fontSize: "14px",
+            fontWeight: "500",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            backgroundColor: connectionStatus === "disconnected" 
+              ? "#ff6b6b" 
+              : connectionStatus === "error" 
+              ? "#ff6b6b"
+              : "#ffd93d",
+            color: connectionStatus === "disconnected" || connectionStatus === "error" ? "white" : "#333"
+          }}>
+            <span style={{ fontSize: "16px" }}>
+              {connectionStatus === "reconnecting" && "🔄"}
+              {connectionStatus === "disconnected" && "⚠️"}
+              {connectionStatus === "error" && "❌"}
+            </span>
+            {connectionStatus === "reconnecting" && (
+              <span>
+                Reconnecting... (Attempt {reconnectAttempt} of 10)
+                {reconnectTimeout && " - Please check your connection"}
+              </span>
+            )}
+            {connectionStatus === "disconnected" && (
+              <span>Network disconnected - Attempting to reconnect...</span>
+            )}
+            {connectionStatus === "error" && (
+              <span>Connection error - Please refresh or check your network</span>
+            )}
+          </div>
+        )}
+
         {multiplayer && (
           <div className="turn-indicator">
             {activePlayer >= 0 && PLAYERS[activePlayer] ? (playerColor && PLAYERS[activePlayer] === playerColor
@@ -1606,8 +1758,8 @@ const findPlayablePawn = (color, move) => {
                                animatingPiece.index === p.index;
 
             return (
+                <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
                 <span
-                key={i}
                 className={`pion ${isAnimating ? 'animating' : ''}`}
                 style={{
                     fontSize: size,
@@ -1669,9 +1821,20 @@ const findPlayablePawn = (color, move) => {
                 >
                 {getPionEmoji(p.color)}
                 </span>
+                {cell.type === "secure" && i === pionsHere.length - 1 && (
+                  <span style={{
+                    color: "gold",
+                    fontSize: "14px",
+                    fontWeight: "bold",
+                    textShadow: "0 0 2px black",
+                    pointerEvents: "none",
+                    lineHeight: 1,
+                  }}>★</span>
+                )}
+                </div>
             );
             })}
-              {cell.type === "secure" && (
+              {cell.type === "secure" && pionsHere.length === 0 && (
             <span style={{
             position: "absolute",
             top: "50%",
@@ -1691,11 +1854,11 @@ const findPlayablePawn = (color, move) => {
          <div className="green_home">
           <div className="posi_first">
               <span className={`item ${
-                pions["green"][0] === -1 ? "vert" : "beige"
+                allPionsForRendering["green"][0] === -1 ? "vert" : "beige"
               }`} onClick={() => {
                 if (!canControlColor("green")) return;
                 if (multiplayer && playerIndex !== activePlayer) return;
-                if (dice === 5 && pions["green"][0] === -1) {
+                if (dice === 5 && allPionsForRendering["green"][0] === -1) {
                   movePawn("green", 0, dice);
                   setDice(null);
                   if (rollCount >= 2) {
@@ -1704,11 +1867,11 @@ const findPlayablePawn = (color, move) => {
                 }
               }}> {/*getPionEmoji("green")*/}</span>
               <span className={`item ${
-                pions["green"][1] === -1 ? "vert" : "beige"
+                allPionsForRendering["green"][1] === -1 ? "vert" : "beige"
               }`} onClick={() => {
                 if (!canControlColor("green")) return;
                 if (multiplayer && playerIndex !== activePlayer) return;
-                if (dice === 5 && pions["green"][1] === -1) {
+                if (dice === 5 && allPionsForRendering["green"][1] === -1) {
                   movePawn("green", 1, dice);
                   setDice(null);
                   if (rollCount >= 2) {
@@ -1719,11 +1882,11 @@ const findPlayablePawn = (color, move) => {
           </div>
             <div className="posi_second"> 
               <span className={`item ${
-                pions["green"][2] === -1 ? "vert" : "beige"
+                allPionsForRendering["green"][2] === -1 ? "vert" : "beige"
               }`} onClick={() => {
                 if (!canControlColor("green")) return;
                 if (multiplayer && playerIndex !== activePlayer) return;
-                if (dice === 5 && pions["green"][2] === -1) {
+                if (dice === 5 && allPionsForRendering["green"][2] === -1) {
                   movePawn("green", 2, dice);
                   setDice(null);
                   if (rollCount >= 2) {
@@ -1732,11 +1895,11 @@ const findPlayablePawn = (color, move) => {
                 }
               }}></span>
               <span className={`item ${
-                pions["green"][3] === -1 ? "vert" : "beige"
+                allPionsForRendering["green"][3] === -1 ? "vert" : "beige"
               }`} onClick={() => {
                 if (!canControlColor("green")) return;
                 if (multiplayer && playerIndex !== activePlayer) return;
-                if (dice === 5 && pions["green"][3] === -1) {
+                if (dice === 5 && allPionsForRendering["green"][3] === -1) {
                   movePawn("green", 3, dice);
                   setDice(null);
                   if (rollCount >= 2) {
@@ -1750,11 +1913,11 @@ const findPlayablePawn = (color, move) => {
         <div className="red_home">
           <div className="posi_first">
               <span className={`item ${
-                pions["red"][0] === -1 ? "rouge" : "beige"
+                allPionsForRendering["red"][0] === -1 ? "rouge" : "beige"
               }`} onClick={() => {
                 if (!canControlColor("red")) return;
                 if (multiplayer && playerIndex !== activePlayer) return;
-                if (dice === 5 && pions["red"][0] === -1) {
+                if (dice === 5 && allPionsForRendering["red"][0] === -1) {
                   movePawn("red", 0, dice);
                   setDice(null);
                   if (rollCount >= 2) {
@@ -1763,11 +1926,11 @@ const findPlayablePawn = (color, move) => {
                 }
               }}></span>
               <span className={`item ${
-                pions["red"][1] === -1 ? "rouge" : "beige"
+                allPionsForRendering["red"][1] === -1 ? "rouge" : "beige"
               }`} onClick={() => {
                 if (!canControlColor("red")) return;
                 if (multiplayer && playerIndex !== activePlayer) return;
-                if (dice === 5 && pions["red"][1] === -1) {
+                if (dice === 5 && allPionsForRendering["red"][1] === -1) {
                   movePawn("red", 1, dice);
                   setDice(null);
                   if (rollCount >= 2) {
@@ -1778,11 +1941,11 @@ const findPlayablePawn = (color, move) => {
           </div>
             <div className="posi_second"> 
               <span className={`item ${
-                pions["red"][2] === -1 ? "rouge" : "beige"
+                allPionsForRendering["red"][2] === -1 ? "rouge" : "beige"
               }`} onClick={() => {
                 if (!canControlColor("red")) return;
                 if (multiplayer && playerIndex !== activePlayer) return;
-                if (dice === 5 && pions["red"][2] === -1) {
+                if (dice === 5 && allPionsForRendering["red"][2] === -1) {
                   movePawn("red", 2, dice);
                   setDice(null);
                   if (rollCount >= 2) {
@@ -1791,11 +1954,11 @@ const findPlayablePawn = (color, move) => {
                 }
               }}></span>
               <span className={`item ${
-                pions["red"][3] === -1 ? "rouge" : "beige"
+                allPionsForRendering["red"][3] === -1 ? "rouge" : "beige"
               }`} onClick={() => {
                 if (!canControlColor("red")) return;
                 if (multiplayer && playerIndex !== activePlayer) return;
-                if (dice === 5 && pions["red"][3] === -1) {
+                if (dice === 5 && allPionsForRendering["red"][3] === -1) {
                   movePawn("red", 3, dice);
                   setDice(null);
                   if (rollCount >= 2) {
@@ -1809,11 +1972,11 @@ const findPlayablePawn = (color, move) => {
         <div className="blue_home">
           <div className="posi_first">
               <span className={`item ${
-                pions["blue"][0] === -1 ? "bleu" : "beige"
+                allPionsForRendering["blue"][0] === -1 ? "bleu" : "beige"
               }`} onClick={() => {
                 if (!canControlColor("blue")) return;
                 if (multiplayer && playerIndex !== activePlayer) return;
-                if (dice === 5 && pions["blue"][0] === -1) {
+                if (dice === 5 && allPionsForRendering["blue"][0] === -1) {
                   movePawn("blue", 0, dice);
                   setDice(null);
                   if (rollCount >= 2) {
@@ -1822,11 +1985,11 @@ const findPlayablePawn = (color, move) => {
                 }
               }}></span>
               <span className={`item ${
-                pions["blue"][1] === -1 ? "bleu" : "beige"
+                allPionsForRendering["blue"][1] === -1 ? "bleu" : "beige"
               }`} onClick={() => {
                 if (!canControlColor("blue")) return;
                 if (multiplayer && playerIndex !== activePlayer) return;
-                if (dice === 5 && pions["blue"][1] === -1) {
+                if (dice === 5 && allPionsForRendering["blue"][1] === -1) {
                   movePawn("blue", 1, dice);
                   setDice(null);
                   if (rollCount >= 2) {
@@ -1837,11 +2000,11 @@ const findPlayablePawn = (color, move) => {
           </div>
             <div className="posi_second"> 
               <span className={`item ${
-                pions["blue"][2] === -1 ? "bleu" : "beige"
+                allPionsForRendering["blue"][2] === -1 ? "bleu" : "beige"
               }`} onClick={() => {
                 if (!canControlColor("blue")) return;
                 if (multiplayer && playerIndex !== activePlayer) return;
-                if (dice === 5 && pions["blue"][2] === -1) {
+                if (dice === 5 && allPionsForRendering["blue"][2] === -1) {
                   movePawn("blue", 2, dice);
                   setDice(null);
                   if (rollCount >= 2) {
@@ -1850,11 +2013,11 @@ const findPlayablePawn = (color, move) => {
                 }
               }}></span>
               <span className={`item ${
-                pions["blue"][3] === -1 ? "bleu" : "beige"
+                allPionsForRendering["blue"][3] === -1 ? "bleu" : "beige"
               }`} onClick={() => {
                 if (!canControlColor("blue")) return;
                 if (multiplayer && playerIndex !== activePlayer) return;
-                if (dice === 5 && pions["blue"][3] === -1) {
+                if (dice === 5 && allPionsForRendering["blue"][3] === -1) {
                   movePawn("blue", 3, dice);
                   setDice(null);
                   if (rollCount >= 2) {
@@ -1868,11 +2031,11 @@ const findPlayablePawn = (color, move) => {
         <div className="yellow_home">
           <div className="posi_first">
               <span className={`item ${
-                pions["yellow"][0] === -1 ? "jaune" : "beige"
+                allPionsForRendering["yellow"][0] === -1 ? "jaune" : "beige"
               }`} onClick={() => {
                 if (!canControlColor("yellow")) return;
                 if (multiplayer && playerIndex !== activePlayer) return;
-                if (dice === 5 && pions["yellow"][0] === -1) {
+                if (dice === 5 && allPionsForRendering["yellow"][0] === -1) {
                   movePawn("yellow", 0, dice);
                   setDice(null);
                   if (rollCount >= 2) {
@@ -1881,11 +2044,11 @@ const findPlayablePawn = (color, move) => {
                 }
               }}></span>
               <span className={`item ${
-                pions["yellow"][1] === -1 ? "jaune" : "beige"
+                allPionsForRendering["yellow"][1] === -1 ? "jaune" : "beige"
               }`}  onClick={() => {
                 if (!canControlColor("yellow")) return;
                 if (multiplayer && playerIndex !== activePlayer) return;
-                if (dice === 5 && pions["yellow"][1] === -1) {
+                if (dice === 5 && allPionsForRendering["yellow"][1] === -1) {
                   movePawn("yellow", 1, dice);
                   setDice(null);
                   if (rollCount >= 2) {
@@ -1896,11 +2059,11 @@ const findPlayablePawn = (color, move) => {
           </div>
             <div className="posi_second"> 
               <span className={`item ${
-                pions["yellow"][2] === -1 ? "jaune" : "beige"
+                allPionsForRendering["yellow"][2] === -1 ? "jaune" : "beige"
               }`}  onClick={() => {
                 if (!canControlColor("yellow")) return;
                 if (multiplayer && playerIndex !== activePlayer) return;
-                if (dice === 5 && pions["yellow"][2] === -1) {
+                if (dice === 5 && allPionsForRendering["yellow"][2] === -1) {
                   movePawn("yellow", 2, dice);
                   setDice(null);
                   if (rollCount >= 2) {
@@ -1909,11 +2072,11 @@ const findPlayablePawn = (color, move) => {
                 }
               }}></span>
               <span className={`item ${
-                pions["yellow"][3] === -1 ? "jaune" : "beige"
+                allPionsForRendering["yellow"][3] === -1 ? "jaune" : "beige"
               }`}  onClick={() => {
                 if (!canControlColor("yellow")) return;
                 if (multiplayer && playerIndex !== activePlayer) return;
-                if (dice === 5 && pions["yellow"][3] === -1) {
+                if (dice === 5 && allPionsForRendering["yellow"][3] === -1) {
                   movePawn("yellow", 3, dice);
                   setDice(null);
                   if (rollCount >= 2) {
@@ -2145,14 +2308,6 @@ const findPlayablePawn = (color, move) => {
         </div>
       </div>
 
-      {(checkWin(pionColor) || gameFinished) && (
-        <h2>🎉 {(gameWinner || pionColor).toUpperCase()} a gagné !</h2>
-      )}
-      {gameFinished && (
-        <button onClick={() => window.location.href = '/home'} style={{ marginTop: '20px', padding: '10px 20px' }}>
-          Retour à la maison
-        </button>
-      )}
         {bonus > 0 && <p>💥 Bonus 10 pas disponible !</p>}
       </div>
 

@@ -1,23 +1,31 @@
-1 -->remove static page 
+1 -->remove static page                                    ****** ok
 
-2 -->remove bugs 1 vs 1 
+2 -->remove bugs 1 vs 1                                    ****** ok
 
-3 -->registration bag (frontend)
+3 -->registration bag (frontend)                           ****** ok
 
-4--> second game history
+4--> second game history                                   ****** ok 
 
-5--> history of our game (principle)
+5--> history of our game (principle)                       ****** ok 
 
-6 --> the home piece still not update
+6 --> the home piece still not update                      ****** ok 
 
-7 --> hang in the game no one could move 
+8 --> reconnection                                         ****** ok
 
-8 --> reconnection 
+9 --> delay in multiplayer logic                           ****** ok 
 
-9 --> delay in multiplayer logic 
+10 --> ila piece drbat piece                                ****** no yet
+
+12 -->remove room fom the nav bar of the /game              ****** no yet
+
+13 --> remove 4 players                                     ****** no yet
 
 10 --> work separation and documentaion 
 
 11 --> push 
 
+
+
+<!-- 
+for testing purpuses make the winning is who that bring out a peice from the home the first one is the winner .. that just for dubbuging testig statistic updaytes keep our code keep our logic just comment it because i will need it back after testing -->
 

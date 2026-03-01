@@ -12,7 +12,6 @@
       --green: #2ED573;
       --yellow: #FFD32A;
       --navy: #0D1B3E;
-      --navy2: #112247;
       --text: #C8D6F0;
       --white: #FFFFFF;
     }
@@ -67,17 +66,26 @@
       cursor: pointer;
       color: var(--white);
       background: linear-gradient(135deg, var(--blue), #1a6edb);
+      transition: transform 0.2s;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
     }
 
     main {
       flex: 1;
-      display: grid;
-      place-items: center;
-      padding: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 30px;
+      padding: 20px;
+      flex-wrap: wrap;
     }
 
-    .card {
-      width: min(92vw, 560px);
+    .game-container {
+      width: 100%;
+      max-width: 420px;
       background: rgba(255,255,255,0.05);
       border: 1px solid rgba(255,255,255,0.15);
       border-radius: 24px;
@@ -98,76 +106,89 @@
       color: var(--text);
       font-weight: 700;
       margin-bottom: 18px;
+      font-size: 0.9rem;
     }
 
     .status {
       text-align: center;
-      padding: 10px 12px;
+      padding: 12px 16px;
       border-radius: 999px;
       background: rgba(255,255,255,0.08);
       border: 1px solid rgba(255,255,255,0.12);
       font-weight: 800;
-      margin-bottom: 16px;
+      margin-bottom: 20px;
+      color: var(--yellow);
     }
 
     .board {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      margin: 0 auto;
-      width: min(90vw, 360px);
+      gap: 12px;
+      margin-bottom: 20px;
+      width: 100%;
     }
 
     .cell {
-      aspect-ratio: 1/1;
+      width: 100%;
+      aspect-ratio: 1;
       border: 2px solid rgba(255,255,255,0.2);
       border-radius: 16px;
       background: rgba(255,255,255,0.04);
       color: white;
       font-family: 'Fredoka One', cursive;
-      font-size: clamp(2rem, 8vw, 3.3rem);
-      display: grid;
-      place-items: center;
+      font-size: 3rem;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
-      transition: transform .12s, border-color .2s, background .2s;
-      user-select: none;
+      transition: all 0.2s;
+      padding: 0;
+      min-height: 110px;
     }
 
-    .cell:hover:not(.disabled) {
-      transform: translateY(-2px);
+    .cell:hover:not(:disabled) {
+      transform: translateY(-3px);
       border-color: var(--blue);
       background: rgba(46,134,255,0.12);
     }
 
-    .cell.disabled {
+    .cell:disabled {
       cursor: not-allowed;
-      opacity: 0.9;
     }
 
-    .x { color: var(--red); }
-    .o { color: var(--green); }
+    .cell.x { color: var(--red); }
+    .cell.o { color: var(--green); }
 
     .score {
-      margin-top: 18px;
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
+      gap: 12px;
+      margin-bottom: 20px;
     }
 
     .score-item {
       background: rgba(255,255,255,0.06);
       border: 1px solid rgba(255,255,255,0.14);
       border-radius: 12px;
-      padding: 10px;
+      padding: 12px 8px;
       text-align: center;
     }
 
-    .score-item b { font-size: 1.2rem; display: block; }
+    .score-item b {
+      font-size: 1.5rem;
+      display: block;
+      color: var(--yellow);
+    }
+
+    .score-item span {
+      font-size: 0.9rem;
+      color: var(--text);
+    }
 
     .actions {
-      margin-top: 16px;
       display: flex;
-      gap: 10px;
+      gap: 12px;
       flex-wrap: wrap;
       justify-content: center;
     }
@@ -175,6 +196,107 @@
     .btn-secondary {
       background: transparent;
       border: 2px solid rgba(255,255,255,0.24);
+    }
+
+    .history-container {
+      width: 100%;
+      max-width: 320px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 24px;
+      padding: 20px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.35);
+      backdrop-filter: blur(8px);
+      height: fit-content;
+      max-height: 600px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .history-title {
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.5rem;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    .history-list {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .history-list::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .history-list::-webkit-scrollbar-track {
+      background: rgba(255,255,255,0.05);
+      border-radius: 3px;
+    }
+
+    .history-list::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.2);
+      border-radius: 3px;
+    }
+
+    .history-item {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      padding: 12px;
+      transition: transform 0.2s;
+    }
+
+    .history-item:hover {
+      transform: translateX(4px);
+      background: rgba(255,255,255,0.08);
+    }
+
+    .history-item.win {
+      border-left: 4px solid var(--green);
+    }
+
+    .history-item.loss {
+      border-left: 4px solid var(--red);
+    }
+
+    .history-item.draw {
+      border-left: 4px solid var(--yellow);
+    }
+
+    .history-result {
+      font-weight: 800;
+      font-size: 1.1rem;
+    }
+
+    .history-time {
+      color: var(--text);
+      font-size: 0.85rem;
+    }
+
+    .history-empty {
+      text-align: center;
+      color: var(--text);
+      padding: 40px 20px;
+      font-style: italic;
+    }
+
+    @media (max-width: 768px) {
+      main {
+        gap: 20px;
+      }
+
+      .game-container, .history-container {
+        max-width: 100%;
+      }
+
+      .cell {
+        min-height: 90px;
+        font-size: 2.5rem;
+      }
     }
   </style>
 </head>
@@ -188,7 +310,7 @@
   </nav>
 
   <main>
-    <section class="card">
+    <section class="game-container">
       <h1 class="title">❌ ⭕ X O</h1>
       <p class="subtitle">Offline mode • Play against bot (1v1)</p>
       <div class="status" id="statusText">Your turn (X)</div>
@@ -206,6 +328,13 @@
         <button class="btn btn-secondary" id="resetScoreBtn">Reset Score</button>
       </div>
     </section>
+
+    <section class="history-container">
+      <h2 class="history-title">📜 Game History</h2>
+      <div class="history-list" id="historyList">
+        <div class="history-empty">No games played yet</div>
+      </div>
+    </section>
   </main>
 
   <script>
@@ -218,11 +347,14 @@
     document.getElementById("backBtn").onclick = () => { window.location.href = profileUrl; };
 
     const SCORE_KEY = `xo-score-${email || "guest"}`;
+    const HISTORY_KEY = `xo-history-${email || "guest"}`;
     const boardEl = document.getElementById("board");
     const statusEl = document.getElementById("statusText");
+    const historyListEl = document.getElementById("historyList");
 
     let board = Array(9).fill(null);
     let gameOver = false;
+    let moveCount = 0;
 
     const lines = [
       [0,1,2],[3,4,5],[6,7,8],
@@ -250,6 +382,67 @@
       document.getElementById("draws").textContent = String(score.draws);
     }
 
+    function getHistory() {
+      try {
+        return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+      } catch {
+        return [];
+      }
+    }
+
+    function addToHistory(result, moves) {
+      const history = getHistory();
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      
+      history.unshift({
+        result,
+        moves,
+        time: timeStr,
+        timestamp: now.getTime()
+      });
+
+      if (history.length > 50) history.pop();
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const history = getHistory();
+      
+      if (history.length === 0) {
+        historyListEl.innerHTML = '<div class="history-empty">No games played yet</div>';
+        return;
+      }
+
+      historyListEl.innerHTML = history.map(game => {
+        let resultText = "";
+        let resultClass = "";
+        let resultEmoji = "";
+
+        if (game.result === "X") {
+          resultText = "You Won";
+          resultClass = "win";
+          resultEmoji = "🎉";
+        } else if (game.result === "O") {
+          resultText = "Bot Won";
+          resultClass = "loss";
+          resultEmoji = "😵";
+        } else {
+          resultText = "Draw";
+          resultClass = "draw";
+          resultEmoji = "🤝";
+        }
+
+        return `
+          <div class="history-item ${resultClass}">
+            <div class="history-result">${resultEmoji} ${resultText}</div>
+            <div class="history-time">${game.time} • ${game.moves} moves</div>
+          </div>
+        `;
+      }).join("");
+    }
+
     function winnerOf(cells) {
       for (const [a,b,c] of lines) {
         if (cells[a] && cells[a] === cells[b] && cells[a] === cells[c]) {
@@ -263,7 +456,7 @@
       boardEl.innerHTML = "";
       board.forEach((value, idx) => {
         const btn = document.createElement("button");
-        btn.className = `cell ${value ? "disabled" : ""}`;
+        btn.className = "cell";
         if (value === "X") btn.classList.add("x");
         if (value === "O") btn.classList.add("o");
         btn.textContent = value || "";
@@ -289,29 +482,45 @@
       }
 
       saveScore(score);
+      addToHistory(result, moveCount);
       render();
     }
 
     function findBestBotMove() {
       const empty = board.map((v, i) => v ? -1 : i).filter(i => i !== -1);
 
+      // Bot makes mistakes 30% of the time
+      const makeMistake = Math.random() < 0.30;
+      if (makeMistake && empty.length > 2) {
+        return empty[Math.floor(Math.random() * empty.length)];
+      }
+
+      // Try to win
       for (const i of empty) {
         const t = [...board];
         t[i] = "O";
         if (winnerOf(t) === "O") return i;
       }
 
-      for (const i of empty) {
-        const t = [...board];
-        t[i] = "X";
-        if (winnerOf(t) === "X") return i;
+      // Block player (70% of the time)
+      if (Math.random() < 0.70) {
+        for (const i of empty) {
+          const t = [...board];
+          t[i] = "X";
+          if (winnerOf(t) === "X") return i;
+        }
       }
 
-      if (!board[4]) return 4;
+      // Take center (60% chance)
+      if (!board[4] && Math.random() < 0.60) return 4;
 
+      // Take corners (50% chance)
       const corners = [0,2,6,8].filter(i => !board[i]);
-      if (corners.length) return corners[Math.floor(Math.random() * corners.length)];
+      if (corners.length && Math.random() < 0.50) {
+        return corners[Math.floor(Math.random() * corners.length)];
+      }
 
+      // Random move
       return empty[Math.floor(Math.random() * empty.length)];
     }
 
@@ -320,6 +529,7 @@
       const idx = findBestBotMove();
       if (idx === undefined) return;
       board[idx] = "O";
+      moveCount++;
 
       const winner = winnerOf(board);
       if (winner) return endRound(winner);
@@ -333,6 +543,7 @@
       if (gameOver || board[idx]) return;
 
       board[idx] = "X";
+      moveCount++;
       render();
 
       const winner = winnerOf(board);
@@ -346,17 +557,23 @@
     function newRound() {
       board = Array(9).fill(null);
       gameOver = false;
+      moveCount = 0;
       statusEl.textContent = "Your turn (X)";
       render();
     }
 
     document.getElementById("newRoundBtn").onclick = newRound;
     document.getElementById("resetScoreBtn").onclick = () => {
-      saveScore({ wins: 0, losses: 0, draws: 0 });
-      newRound();
+      if (confirm("Reset score and history?")) {
+        saveScore({ wins: 0, losses: 0, draws: 0 });
+        localStorage.removeItem(HISTORY_KEY);
+        renderHistory();
+        newRound();
+      }
     };
 
     saveScore(getScore());
+    renderHistory();
     newRound();
   </script>
 </body>

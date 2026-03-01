@@ -12,11 +12,6 @@ export default function Home({ setStep }) {
           <h2>2 Joueurs</h2>
           <p>1 vs 1</p>
         </div>
-
-        <div className="card" onClick={() => setStep("players-4")}>
-          <h2>4 Joueurs</h2>
-          <p>Partie complète</p>
-        </div>
       </div>
     </div>
   );

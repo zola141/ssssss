@@ -18,10 +18,9 @@ export default function App() {
 
   if (shouldUseUrl) {
     const multiplayer = roomCode ? true : urlMultiplayer !== "false";
-    const effectiveGameType = urlGameType || "4-player";
-    const is1v1 = effectiveGameType === "1v1";
-    const players = is1v1 ? ["red", "yellow"] : ["red", "green", "blue", "yellow"];
-    const bots = multiplayer ? [] : is1v1 ? ["yellow"] : ["green", "blue", "yellow"];
+    const effectiveGameType = "1v1";
+    const players = ["red", "yellow"];
+    const bots = multiplayer ? [] : ["yellow"];
 
     return (
       <Game
@@ -38,12 +37,6 @@ export default function App() {
 
   if (step === "players-2")
     return <Mode playersCount={2} setGameConfig={(c) => {
-      setConfig(c);
-      setStep("game");
-    }} />;
-
-  if (step === "players-4")
-    return <Mode playersCount={4} setGameConfig={(c) => {
       setConfig(c);
       setStep("game");
     }} />;
