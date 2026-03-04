@@ -1,7 +1,7 @@
 import "../styles/menu.css";
 
 
-export default function Mode({ playersCount, setGameConfig }) {
+export default function Mode({ setGameConfig }) {
   const gameType = "1v1";
   return (
     <div className="page">

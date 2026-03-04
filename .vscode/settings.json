@@ -1,0 +1,28 @@
+{
+  "files.associations": {
+    ".tldr": "tldr"
+  },
+  "[tldr]": {
+    "editor.defaultFormatter": null,
+    "editor.formatOnSave": false,
+    "editor.wordWrap": "on",
+    "editor.wordWrapColumn": 120,
+    "editor.formatOnType": false
+  },
+  "editor.tokenColorCustomizations": {
+    "[TLDR Dark]": {
+      "comments": "#6a9955",
+      "keywords": "#569cd6",
+      "numbers": "#b5cea8",
+      "strings": "#ce9178",
+      "variables": "#9cdcfe"
+    },
+    "[TLDR Light]": {
+      "comments": "#008000",
+      "keywords": "#0000ff",
+      "numbers": "#098658",
+      "strings": "#a31515",
+      "variables": "#0066cc"
+    }
+  }
+}

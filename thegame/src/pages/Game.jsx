@@ -346,7 +346,6 @@ function getLegalMoves(color, state, diceValue) {
     
 
     const targetCell = PATHS[color][targetPos];
-    const cellType = getCellType(targetCell.x, targetCell.y);
     let canCapture = false;
     
     if (!isSafeCell(targetCell.x, targetCell.y)) {
@@ -375,48 +374,6 @@ function getLegalMoves(color, state, diceValue) {
   return moves;
 }
 
-/**
- * Choose best move for bot (Medium difficulty)
- * Priority: 1. Capture, 2. Enter center, 3. Closest to finish, 4. Leave home
- */
-function chooseBotMove(legalMoves, color, state) {
-  if (legalMoves.length === 0) return null;
-  
-
-  const captureMoves = legalMoves.filter(m => m.canCapture);
-  if (captureMoves.length > 0) {
-    return captureMoves[0];
-  }
-  
-
-  const centerMoves = legalMoves.filter(m => m.entersCenter);
-  if (centerMoves.length > 0) {
-    return centerMoves[0];
-  }
-  
-
-  const boardMoves = legalMoves.filter(m => m.fromPos >= 0);
-  if (boardMoves.length > 0) {
-    boardMoves.sort((a, b) => b.fromPos - a.fromPos);
-    return boardMoves[0];
-  }
-  
-
-  const homeMoves = legalMoves.filter(m => m.fromPos === -1);
-  if (homeMoves.length > 0) {
-    return homeMoves[0];
-  }
-  
-  return legalMoves[0];
-}
-
-/**
- * Check if turn should automatically pass
- */
-function shouldPassTurn(rollCount, hasBonus, hasDice) {
-  return rollCount >= 2 && !hasBonus && !hasDice;
-}
-
 /* ===============================
    GAME
    =============================== */
@@ -430,11 +387,7 @@ export default function Game({ players, bots, gameType, multiplayer }) {
     yellow: [-1, -1, -1, -1],
   });
   const [socket, setSocket] = useState(null);
-  const [roomId, setRoomId] = useState(null);
   const [playerIndex, setPlayerIndex] = useState(null);
-  const [remotePions, setRemotePions] = useState({});
-  const [gameFinished, setGameFinished] = useState(false);
-  const [gameWinner, setGameWinner] = useState(null);
   const [playerColor, setPlayerColor] = useState(null);
   const [allPlayers, setAllPlayers] = useState({});
   const [resolvedGameType, setResolvedGameType] = useState(gameType);
@@ -541,11 +494,8 @@ export default function Game({ players, bots, gameType, multiplayer }) {
     newSocket.on("room-joined", (data) => {
       console.log("[room-joined] *** LISTENER FIRED *** Received data:", data);
       console.log("[room-joined] IMPORTANT: playerIndex from server:", data.playerIndex, "playerCount:", data.playerCount);
-      setRoomId(data.roomId);
       setPlayerIndex(data.playerIndex);
-      
 
-      const gameTypeToUse = data.gameType || gameType;
       const finalGameType = "1v1";
       
       console.log("[room-joined] playerCount:", data.playerCount, "gameTypeFromServer:", data.gameType, "gameTypeFromURL:", gameType, "finalGameType:", finalGameType);
@@ -594,7 +544,6 @@ export default function Game({ players, bots, gameType, multiplayer }) {
 
 
     newSocket.on("players-updated", (data) => {
-      const gameTypeToUse = data.gameType || resolvedGameType || gameType;
       if (data.gameType) {
         setResolvedGameType(data.gameType);
       }
@@ -647,28 +596,15 @@ export default function Game({ players, bots, gameType, multiplayer }) {
 
       lastRemoteMoveSeqRef.current[data.email] = incomingSeq;
       setPions(data.pions);
-      setRemotePions((prev) => ({
-        ...prev,
-        [data.email]: data.pions
-      }));
     });
 
     newSocket.on("dice-rolled", (data) => {
       if (typeof data?.value !== "number") return;
       setDice(data.value);
-      if (data.color) {
-        setDiceValues((prev) => ({ ...prev, [data.color]: data.value }));
-      }
     });
 
     newSocket.on("player-left", (data) => {
       if (!data?.email) return;
-      setRemotePions((prev) => {
-        if (!prev[data.email]) return prev;
-        const next = { ...prev };
-        delete next[data.email];
-        return next;
-      });
 
       setAllPlayers((prev) => {
         const next = { ...prev };
@@ -681,18 +617,12 @@ export default function Game({ players, bots, gameType, multiplayer }) {
       });
     });
 
-    newSocket.on("game-finished", (data) => {
-      setGameFinished(true);
-      setGameWinner(data.winner);
-    });
+    newSocket.on("game-finished", () => {});
 
     newSocket.on("game-state-recovery", (data) => {
       console.log("[game-state-recovery] Received:", data);
       if (data.pions) {
         setPions(data.pions);
-      }
-      if (data.remotePions) {
-        setRemotePions(data.remotePions);
       }
       if (typeof data.activeColor !== "undefined" && data.turnIndex !== undefined) {
         setActivePlayer(data.turnIndex);
@@ -705,8 +635,6 @@ export default function Game({ players, bots, gameType, multiplayer }) {
       }
       console.log("[game-state-recovery] Game state restored");
     });
-
-    newSocket.on("error", (msg) => {});
 
     setSocket(newSocket);
 
@@ -884,7 +812,6 @@ export default function Game({ players, bots, gameType, multiplayer }) {
 
   const [rollingPlayer, setRollingPlayer] = useState(null);
 
-const effectiveGameType = multiplayer ? (resolvedGameType || gameType) : gameType;
 const PLAYERS = useMemo(() => {
   const currentGameType = multiplayer ? (resolvedGameType || gameType) : gameType;
   console.log("[PLAYERS useMemo] multiplayer:", multiplayer, "resolvedGameType:", resolvedGameType, "gameType:", gameType, "currentGameType:", currentGameType);
@@ -936,12 +863,6 @@ const canControlColor = (color) => {
 
   const [activePlayer, setActivePlayer] = useState(0);
   const [rollCount, setRollCount] = useState(0);
-  const [diceValues, setDiceValues] = useState({
-    red: null,
-    green: null,
-    blue: null,
-    yellow: null,
-  });
   const [consecutiveSixes, setConsecutiveSixes] = useState(0);
   const [turnLocked, setTurnLocked] = useState(false);
 
@@ -974,19 +895,6 @@ const canControlColor = (color) => {
 
     return () => clearTimeout(timer);
   }, [activePlayer, dice, bonus, rollCount, PLAYERS, BOT_PLAYERS, multiplayer]);
-
-  const [flag, setFlag] = useState(0);
-  const COLORS = ["red", "green", "blue", "yellow"];
-  const pionColor = COLORS[Math.floor(flag / 2) % 4];
-
-  const isCenter = (cell) => cell.type === "center";
-
-const countCenter = (color) =>
-  pions[color].filter(pos => {
-    if (pos === -1) return false;
-    const cell = PATHS[color][pos];
-    return isCenter(cell);
-  }).length;
 
 const centerPawns = (color) => {
   return pions[color].filter((pos) => {
@@ -1049,13 +957,12 @@ const centerPawns = (color) => {
         diceAudioRef.current.play().catch(() => {
           // Silently ignore audio play errors - browser might block autoplay
         });
-      } catch (err) {
+      } catch {
         // Silently ignore audio errors
       }
     }
 
     setDice(value);
-    setDiceValues(prev => ({ ...prev, [color]: value }));
     setRollCount(prev => prev + 1);
     
     // Handle consecutive sixes
@@ -1189,23 +1096,6 @@ const isBlocked = (fromPos, toPos, color, state) => {
   return false;
 };
 
-  const findBlockIndex = (pionsState) => {
-    let blockPos = -1;
-    Object.keys(pionsState).forEach(color => {
-      const counts = {};
-      pionsState[color].forEach(pos => {
-        if (pos >= 0) counts[pos] = (counts[pos] || 0) + 1;
-      });
-      Object.keys(counts).forEach(posStr => {
-        const pos = Number(posStr);
-        if (counts[pos] >= 2) {
-          if (pos > blockPos) blockPos = pos;
-        }
-      });
-    });
-    return blockPos;
-  };
-
   const movePawn = (color, index, move) => {
   if (multiplayer && playerColor && color !== playerColor) return;
   
@@ -1303,8 +1193,6 @@ const cellType = getCellType(targetCell.x, targetCell.y);
 
 const newState = { ...prev };
 
-let captureOccurred = false;
-
     if (cellType.type !== "secure") {
       Object.keys(prev).forEach(enemy => {
         if (enemy === color) return;
@@ -1312,7 +1200,6 @@ let captureOccurred = false;
           if (p >= 0 && PATHS[enemy][p].x === targetCell.x && PATHS[enemy][p].y === targetCell.y) {
             newState[enemy][i] = -1;
             setBonus(10);
-            captureOccurred = true;
           }
         });
       });
@@ -1464,37 +1351,6 @@ const findPlayablePawn = (color, move) => {
 
   return -1;
 };
-
-  const checkWin = color => {
-    // Original win condition: all pieces must reach the end
-    const hasWon = pions[color].every(pos => pos === PATHS[color].length - 1);
-    
-
-    if (hasWon && multiplayer && socket) {
-      const losers = PLAYERS.filter(c => c !== color);
-      
-      // Get player emails from allPlayers
-      const winnerEmail = allPlayers[color]?.email;
-      const loserEmails = losers.map(c => allPlayers[c]?.email).filter(Boolean);
-      
-      console.log('[checkWin] Winner color:', color, 'Winner email:', winnerEmail);
-      console.log('[checkWin] Loser emails:', loserEmails);
-      
-      if (winnerEmail) {
-        socket.emit("game-end", {
-          winner: winnerEmail,
-          losers: loserEmails,
-          winnerColor: color,
-          finalPions: pions,
-          duration: Math.floor((Date.now() - (window.gameStartTime || Date.now())) / 60000) || 1,
-          winnerScore: 4,
-          loserScore: 0
-        });
-      }
-    }
-    
-    return hasWon;
-  };
 
   const sendChatMessage = () => {
     if (!chatSocket || !chatRoomId) return;
@@ -1691,7 +1547,6 @@ const findPlayablePawn = (color, move) => {
         });
     });
 
-          const isDouble = pionsHere.length >= 2;
       const isCenter = cell.type === "center";
 
         return (

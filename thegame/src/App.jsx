@@ -1,6 +1,3 @@
-//import Game from "./pages/ohada.jsx"
-
-
 import { useState } from "react";
 import Home from "./pages/Home";
 import Mode from "./pages/Mode";
@@ -13,7 +10,6 @@ export default function App() {
   const params = new URLSearchParams(window.location.search);
   const urlMultiplayer = params.get("multiplayer");
   const roomCode = params.get("roomCode");
-  const urlGameType = params.get("gameType");
   const shouldUseUrl = roomCode || urlMultiplayer !== null;
 
   if (shouldUseUrl) {
