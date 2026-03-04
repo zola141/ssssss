@@ -5,17 +5,12 @@
   position: relative;
 }
 
-/* Navbar container with glassmorphism */
 .navbar {
-  background: rgba(15, 23, 42, 0.6);
-  /* Transparent dark bg */
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: var(--primary-bg);
   border-bottom: 1px solid var(--glass-border);
   position: sticky;
   top: 0;
   z-index: 100;
-  transition: all 0.3s ease;
 }
 
 .nav-container {
@@ -31,13 +26,11 @@
 
 .logo {
   font-size: 1.5rem;
-  font-weight: 800;
+  font-weight: 700;
   margin: 0;
-  background: linear-gradient(to right, #fff, var(--accent-color));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--text-primary);
   letter-spacing: -0.03em;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .nav-links {
@@ -53,14 +46,14 @@
   text-decoration: none;
   font-weight: 500;
   font-size: 0.95rem;
-  transition: all 0.2s;
   padding: 0.5rem 1rem;
   border-radius: var(--radius-sm);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .nav-links a:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.05);
+  background: transparent;
 }
 
 .main-content {
@@ -99,28 +92,13 @@
   color: var(--text-secondary);
   text-decoration: none;
   font-size: 0.9rem;
-  transition: color 0.2s;
-  position: relative;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .footer-links a:hover {
   color: var(--text-primary);
 }
 
-.footer-links a::after {
-  content: '';
-  position: absolute;
-  width: 0;
-  height: 1px;
-  bottom: -4px;
-  left: 0;
-  background-color: var(--accent-color);
-  transition: width 0.3s;
-}
-
-.footer-links a:hover::after {
-  width: 100%;
-}
 
 @media (max-width: 768px) {
   .nav-container {

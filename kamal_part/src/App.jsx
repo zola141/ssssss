@@ -1,8 +1,6 @@
 import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } from 'react-router-dom';
 import MainLayout from './layouts/MainLayout';
 import HomePage from './pages/HomePage';
-import PlayPage from './pages/PlayPage';
-import RoomsPage from './pages/RoomsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
 import ContactPage from './pages/ContactPage';
@@ -12,8 +10,6 @@ const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path='/' element={<MainLayout />}>
       <Route index element={<HomePage />} />
-      <Route path='play' element={<PlayPage />} />
-      <Route path='rooms' element={<RoomsPage />} />
       <Route path='privacy' element={<PrivacyPage />} />
       <Route path='terms' element={<TermsPage />} />
       <Route path='contact' element={<ContactPage />} />

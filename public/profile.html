@@ -2,7 +2,6 @@
 <html>
 <head>
   <title>Profile - LudoX</title>
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
   <style>
     :root {
       --red:    #FF4757;
@@ -23,7 +22,7 @@
     }
 
     body {
-      font-family: 'Nunito', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: var(--navy);
       color: var(--white);
       min-height: 100vh;
@@ -38,8 +37,7 @@
       left: 0;
       right: 0;
       z-index: 100;
-      background: rgba(13,27,62,0.95);
-      backdrop-filter: blur(10px);
+      background: var(--navy);
       border-bottom: 1px solid rgba(255,255,255,0.1);
       padding: 16px 32px;
       display: flex;
@@ -72,10 +70,11 @@
     }
 
     .brand {
-      font-family: 'Fredoka One', cursive;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 1.5rem;
       color: white;
       letter-spacing: 0.02em;
+      font-weight: 700;
     }
 
     .nav-links {
@@ -85,11 +84,10 @@
 
     .nav-links a {
       text-decoration: none;
-      font-family: 'Nunito', sans-serif;
-      font-weight: 700;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-weight: 600;
       font-size: 0.9rem;
       color: rgba(255,255,255,0.6);
-      transition: color 0.2s;
     }
 
     .nav-links a:hover,
@@ -117,16 +115,14 @@
       border: 2px solid rgba(255,255,255,0.2);
       background: transparent;
       color: white;
-      border-radius: 12px;
-      font-family: 'Nunito', sans-serif;
-      font-weight: 800;
+      border-radius: 8px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-weight: 700;
       cursor: pointer;
-      transition: all 0.2s;
     }
 
     .btn-outline:hover {
-      border-color: var(--blue);
-      background: rgba(46,134,255,0.1);
+      opacity: 0.9;
     }
 
     /* Main Content */
@@ -134,21 +130,7 @@
       flex: 1;
       padding-top: 80px;
       padding-bottom: 80px;
-      background-image: radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px);
-      background-size: 28px 28px;
       position: relative;
-    }
-
-    .main-content::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: radial-gradient(ellipse 60% 40% at 20% 10%, rgba(46,134,255,0.12) 0%, transparent 60%),
-                  radial-gradient(ellipse 50% 40% at 80% 80%, rgba(255,71,87,0.10) 0%, transparent 60%);
-      pointer-events: none;
     }
 
     .container {
@@ -162,14 +144,13 @@
     .profile-header {
       background: rgba(255,255,255,0.05);
       border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 28px;
-      backdrop-filter: blur(10px);
+      border-radius: 8px;
       padding: 48px;
       margin-bottom: 24px;
       display: flex;
       align-items: center;
       gap: 32px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.3);
     }
 
     .profile-avatar {
@@ -178,7 +159,6 @@
       border-radius: 50%;
       object-fit: cover;
       border: 4px solid var(--blue);
-      box-shadow: 0 8px 24px rgba(46,134,255,0.3);
     }
 
     .profile-info {
@@ -186,9 +166,10 @@
     }
 
     .profile-name {
-      font-family: 'Fredoka One', cursive;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 2.5rem;
       margin-bottom: 8px;
+      font-weight: 700;
     }
 
     .profile-meta {
@@ -214,10 +195,11 @@
     }
 
     .stat-value {
-      font-family: 'Fredoka One', cursive;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 2rem;
       color: var(--blue);
       margin-bottom: 4px;
+      font-weight: 700;
     }
 
     .stat-label {
@@ -237,18 +219,14 @@
     .action-card {
       background: rgba(255,255,255,0.05);
       border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 20px;
+      border-radius: 8px;
       padding: 32px;
       text-align: center;
       cursor: pointer;
-      transition: all 0.3s;
-      backdrop-filter: blur(10px);
     }
 
     .action-card:hover {
-      transform: translateY(-4px);
-      border-color: var(--blue);
-      box-shadow: 0 12px 32px rgba(46,134,255,0.2);
+      opacity: 0.9;
     }
 
     .action-icon {
@@ -257,9 +235,10 @@
     }
 
     .action-title {
-      font-family: 'Fredoka One', cursive;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 1.3rem;
       margin-bottom: 8px;
+      font-weight: 700;
     }
 
     .action-desc {
@@ -272,46 +251,39 @@
       width: 100%;
       padding: 14px;
       border: none;
-      border-radius: 14px;
-      font-family: 'Nunito', sans-serif;
-      font-weight: 800;
+      border-radius: 8px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-weight: 700;
       font-size: 1rem;
       cursor: pointer;
       margin-top: 16px;
-      transition: all 0.2s;
     }
 
     .btn-primary {
       background: linear-gradient(135deg, var(--blue), #1a6edb);
       color: white;
-      box-shadow: 0 8px 24px rgba(46,134,255,0.3);
     }
 
     .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 32px rgba(46,134,255,0.4);
+      opacity: 0.9;
     }
 
     .btn-success {
       background: linear-gradient(135deg, var(--green), #20b35f);
       color: white;
-      box-shadow: 0 8px 24px rgba(46,213,115,0.3);
     }
 
     .btn-success:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 32px rgba(46,213,115,0.4);
+      opacity: 0.9;
     }
 
     .btn-warning {
       background: linear-gradient(135deg, var(--yellow), #f5a623);
       color: var(--navy);
-      box-shadow: 0 8px 24px rgba(255,211,42,0.3);
     }
 
     .btn-warning:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 32px rgba(255,211,42,0.4);
+      opacity: 0.9;
     }
 
     /* Footer */
@@ -342,7 +314,6 @@
       font-weight: 700;
       color: var(--text);
       text-decoration: none;
-      transition: color 0.2s;
     }
 
     .footer-links a:hover {
@@ -358,7 +329,6 @@
       right: 0;
       bottom: 0;
       background: rgba(0,0,0,0.8);
-      backdrop-filter: blur(8px);
       z-index: 200;
       align-items: center;
       justify-content: center;
@@ -368,19 +338,19 @@
     .modal-content {
       background: rgba(255,255,255,0.05);
       border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 28px;
-      backdrop-filter: blur(10px);
+      border-radius: 8px;
       padding: 40px;
       max-width: 440px;
       width: 100%;
-      box-shadow: 0 40px 100px rgba(0,0,0,0.6);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
     }
 
     .modal-title {
-      font-family: 'Fredoka One', cursive;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 1.8rem;
       margin-bottom: 24px;
       text-align: center;
+      font-weight: 700;
     }
 
     .form-group {
@@ -407,17 +377,15 @@
       padding: 14px 16px;
       background: rgba(255,255,255,0.07);
       border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 12px;
+      border-radius: 8px;
       color: white;
-      font-family: 'Nunito', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 0.95rem;
       outline: none;
-      transition: border-color 0.2s;
     }
 
     input[type="text"]:focus {
       border-color: var(--blue);
-      box-shadow: 0 0 0 3px rgba(46,134,255,0.15);
     }
 
     .radio-group {
@@ -432,17 +400,15 @@
       padding: 12px 16px;
       background: rgba(255,255,255,0.05);
       border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 12px;
+      border-radius: 8px;
       cursor: pointer;
-      transition: all 0.2s;
       color: white;
       font-weight: 700;
       text-transform: none;
     }
 
     .radio-label:hover {
-      background: rgba(255,255,255,0.08);
-      border-color: var(--blue);
+      opacity: 0.9;
     }
 
     .btn-group {
@@ -457,16 +423,14 @@
       border: 2px solid rgba(255,255,255,0.2);
       background: transparent;
       color: white;
-      border-radius: 14px;
-      font-family: 'Nunito', sans-serif;
-      font-weight: 800;
+      border-radius: 8px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-weight: 700;
       cursor: pointer;
-      transition: all 0.2s;
     }
 
     .btn-cancel:hover {
-      border-color: var(--red);
-      background: rgba(255,71,87,0.1);
+      opacity: 0.9;
     }
   </style>
 </head>
@@ -501,14 +465,6 @@
           <div id="profileMeta" class="profile-meta"></div>
           
           <div class="stats-grid">
-            <div class="stat-card">
-              <div id="levelCount" class="stat-value">1</div>
-              <div class="stat-label">Level</div>
-            </div>
-            <div class="stat-card">
-              <div id="xpCount" class="stat-value">0/100</div>
-              <div class="stat-label">XP</div>
-            </div>
             <div class="stat-card">
               <div id="winsCount" class="stat-value">0</div>
               <div class="stat-label">Wins</div>
@@ -571,13 +527,6 @@
           <div class="action-title">Edit Profile</div>
           <div class="action-desc">Update your info and avatar</div>
           <button class="btn-action btn-success" onclick="showEditProfileModal()">Edit</button>
-        </div>
-
-        <div class="action-card">
-          <div class="action-icon">❌⭕</div>
-          <div class="action-title">X O vs Bot</div>
-          <div class="action-desc">Offline 1v1 against computer</div>
-          <button class="btn-action btn-success" onclick="openXoBotGame()">Play X O</button>
         </div>
       </div>
     </div>
@@ -669,19 +618,25 @@
 
   <script>
     const params = new URLSearchParams(window.location.search);
-    const email = params.get("email");
-    const token = params.get("token");
+    // Get token from sessionStorage instead of URL
+    let token = sessionStorage.getItem("authToken");
+    let email = sessionStorage.getItem("userEmail");
+    
     let currentUser = null;
 
     async function loadProfile() {
-      if (!email) {
+      if (!token || !email) {
         alert("Missing authentication. Redirecting to login...");
         window.location.href = "/login";
         return;
       }
 
       try {
-        const res = await fetch(`/api/users/me?email=${encodeURIComponent(email)}`);
+        const res = await fetch(`/api/users/me?email=${encodeURIComponent(email)}`, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
         if (!res.ok) {
           throw new Error("Failed to load profile");
         }
@@ -694,8 +649,6 @@
         document.getElementById("profileMeta").innerText = `${user.country || "Country N/A"} • ${user.age || "-"} years • ${user.gender || "N/A"}`;
         
         // Update stats
-        document.getElementById("levelCount").innerText = user.level || 1;
-        document.getElementById("xpCount").innerText = `${user.xp || 0}/${user.totalXpNeeded || 100}`;
         document.getElementById("winsCount").innerText = user.wins || 0;
         document.getElementById("lossesCount").innerText = user.losses || 0;
         document.getElementById("drawsCount").innerText = user.draws || 0;
@@ -724,7 +677,7 @@
     }
 
     function playAgainstBots() {
-      window.location.href = `/game?token=${token}&multiplayer=false&gameType=1v1`;
+      window.location.href = `/game?multiplayer=false&gameType=1v1`;
     }
 
     function showEditProfileModal() {
@@ -759,8 +712,11 @@
           formData.append("profile", avatarFile);
         }
 
-        const res = await fetch(`/api/users/me?token=${encodeURIComponent(token || "")}`, {
+        const res = await fetch(`/api/users/me`, {
           method: "PUT",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          },
           body: formData
         });
 
@@ -778,12 +734,8 @@
       }
     }
 
-    function openXoBotGame() {
-      window.location.href = `/xo?token=${encodeURIComponent(token || "")}&email=${encodeURIComponent(email || "")}`;
-    }
-
     function openStatistics() {
-      window.location.href = `/stats.html?token=${encodeURIComponent(token || "")}&email=${encodeURIComponent(email || "")}`;
+      window.location.href = `/stats.html`;
     }
 
     function calculateElo(wins, losses) {
@@ -858,7 +810,7 @@
           closeCreateRoomModal();
           const gameType = maxPlayers === "2" ? "1v1" : "4-player";
           alert(`🎉 Room created!\n\nCode: ${data.roomCode}\n\nShare this with other players to join.`);
-          window.location.href = `/game?token=${token}&email=${encodeURIComponent(email)}&roomCode=${data.roomCode}&multiplayer=true&gameType=${gameType}`;
+          window.location.href = `/game?email=${encodeURIComponent(email)}&roomCode=${data.roomCode}&multiplayer=true&gameType=${gameType}`;
         } else {
           alert(data.message || "Failed to create room");
         }
@@ -894,7 +846,7 @@
         if (data.room) {
           closeJoinRoomModal();
           const gameType = data.room.maxPlayers === 2 ? "1v1" : "4-player";
-          window.location.href = `/game?token=${token}&email=${encodeURIComponent(email)}&roomCode=${roomCode}&multiplayer=true&gameType=${gameType}`;
+          window.location.href = `/game?email=${encodeURIComponent(email)}&roomCode=${roomCode}&multiplayer=true&gameType=${gameType}`;
         } else {
           alert(data.message || "Failed to join room");
         }

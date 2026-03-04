@@ -99,14 +99,6 @@
       color: var(--text);
     }
 
-    .progression-section {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 16px;
-      padding: 32px;
-      margin-bottom: 40px;
-    }
-
     .section-title {
       font-family: 'Fredoka One', cursive;
       font-size: 1.5rem;
@@ -114,69 +106,6 @@
       display: flex;
       align-items: center;
       gap: 12px;
-    }
-
-    .level-display {
-      display: flex;
-      align-items: center;
-      gap: 32px;
-      margin-bottom: 24px;
-    }
-
-    .level-badge {
-      width: 120px;
-      height: 120px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--yellow), #FF9500);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 8px 30px rgba(255, 211, 42, 0.3);
-    }
-
-    .level-number {
-      font-size: 3rem;
-      font-weight: 900;
-      font-family: 'Fredoka One', cursive;
-      color: #1a1000;
-    }
-
-    .level-label {
-      font-size: 0.7rem;
-      color: #1a1000;
-      text-transform: uppercase;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-    }
-
-    .level-info {
-      flex: 1;
-    }
-
-    .xp-bar-container {
-      margin-bottom: 12px;
-    }
-
-    .xp-bar {
-      width: 100%;
-      height: 12px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 6px;
-      overflow: hidden;
-      border: 1px solid rgba(255,255,255,0.2);
-    }
-
-    .xp-progress {
-      height: 100%;
-      background: linear-gradient(90deg, var(--blue), var(--green));
-      width: 0%;
-      transition: width 0.3s;
-    }
-
-    .xp-text {
-      font-size: 0.9rem;
-      color: var(--text);
     }
 
     .achievements-section {
@@ -374,29 +303,6 @@
   <div class="container">
     <h1>Your Game Statistics</h1>
 
-    <!-- Progression Section -->
-    <div class="progression-section">
-      <div class="section-title">📈 Progression</div>
-      
-      <div class="level-display">
-        <div class="level-badge">
-          <div class="level-number" id="levelNumber">1</div>
-          <div class="level-label">Level</div>
-        </div>
-        <div class="level-info">
-          <div class="xp-bar-container">
-            <div class="xp-bar">
-              <div class="xp-progress" id="xpProgress" style="width: 0%"></div>
-            </div>
-            <div class="xp-text"><span id="xpCurrent">0</span> / <span id="xpTotal">100</span> XP</div>
-          </div>
-          <div style="font-size: 0.9rem; color: var(--text); margin-top: 8px;">
-            Progress: <span id="xpPercentage">0</span>%
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Stats Grid -->
     <div class="stats-grid">
       <div class="stat-card">
@@ -455,39 +361,28 @@
   </div>
 
   <script>
-    let token = new URLSearchParams(window.location.search).get('token');
-    let email = new URLSearchParams(window.location.search).get('email');
-
-    if (!token || !email) {
-      const stored = localStorage.getItem('auth');
-      if (stored) {
-        const auth = JSON.parse(stored);
-        token = auth.token;
-        email = auth.email;
-      }
-    }
+    // Get token from sessionStorage instead of URL
+    let token = sessionStorage.getItem('authToken');
+    let email = sessionStorage.getItem('userEmail');
 
     if (!token) {
-      window.location.href = '/';
+      window.location.href = '/login';
     }
 
     async function loadStats() {
       try {
-        const res = await fetch(`/api/progression?token=${token}`);
+        const res = await fetch(`/api/progression/progression`, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
         const data = await res.json();
-
-        document.getElementById('levelNumber').textContent = data.level;
         document.getElementById('winsCount').textContent = data.wins;
         document.getElementById('lossesCount').textContent = data.losses;
         document.getElementById('drawsCount').textContent = data.draws;
         document.getElementById('matchesCount').textContent = data.matches;
         document.getElementById('winRate').textContent = data.winRate + '%';
         document.getElementById('eloRating').textContent = Math.round(data.elo);
-
-        document.getElementById('xpCurrent').textContent = data.xp;
-        document.getElementById('xpTotal').textContent = data.totalXpNeeded;
-        document.getElementById('xpPercentage').textContent = Math.round(data.xpPercentage);
-        document.getElementById('xpProgress').style.width = data.xpPercentage + '%';
       } catch (err) {
         console.error('Error loading stats:', err);
       }
@@ -495,15 +390,17 @@
 
     async function loadAchievements() {
       try {
-        const res = await fetch(`/api/achievements?token=${token}`);
+        const res = await fetch(`/api/achievements`, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
         const achievements = await res.json();
 
         const allAchievements = [
           { id: 'first-win', name: 'First Win!', icon: '🎉' },
           { id: 'ten-wins', name: 'Victorious', icon: '⚔️' },
           { id: 'hundred-wins', name: 'Champion', icon: '👑' },
-          { id: 'level-5', name: 'Rising Star', icon: '⭐' },
-          { id: 'level-10', name: 'Master', icon: '🔥' },
           { id: 'draw-king', name: 'Balanced', icon: '⚖️' },
           { id: 'matches-10', name: 'Veteran', icon: '🛡️' },
           { id: 'matches-50', name: 'Legend', icon: '🏆' },
@@ -534,7 +431,11 @@
 
     async function loadMatchHistory() {
       try {
-        const res = await fetch(`/api/matches/history?limit=50&token=${token}`);
+        const res = await fetch(`/api/matches/history?limit=50`, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
         const matches = await res.json();
 
         const list = document.getElementById('matchList');

@@ -34,8 +34,6 @@ interface PlayerStats {
   username: string;
   total_wins: number;
   total_losses: number;
-  level: number;
-  xp: number;
 }
 
 interface FilterOptions {
@@ -286,17 +284,19 @@ export const AnalyticsDashboard: React.FC = () => {
         ],
       });
 
-      // Build activity-like trend using XP distribution
-      const sortedByXp = [...statsArray]
-        .sort((a, b) => (b.xp || 0) - (a.xp || 0))
+      // Build activity-like trend using total matches distribution
+      const sortedByMatchesTrend = [...statsArray]
+        .sort((a, b) => ((b.total_wins + b.total_losses) - (a.total_wins + a.total_losses)))
         .slice(0, 8);
 
       setActivityData({
-        labels: sortedByXp.length > 0 ? sortedByXp.map((p) => p.username) : ['No data'],
+        labels: sortedByMatchesTrend.length > 0 ? sortedByMatchesTrend.map((p) => p.username) : ['No data'],
         datasets: [
           {
-            label: 'XP by Player',
-            data: sortedByXp.length > 0 ? sortedByXp.map((p) => p.xp || 0) : [0],
+            label: 'Matches by Player',
+            data: sortedByMatchesTrend.length > 0
+              ? sortedByMatchesTrend.map((p) => (p.total_wins || 0) + (p.total_losses || 0))
+              : [0],
             borderColor: 'rgba(59, 130, 246, 1)',
             backgroundColor: 'rgba(59, 130, 246, 0.1)',
             borderWidth: 2,

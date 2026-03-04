@@ -2,7 +2,6 @@
 <html>
 <head>
   <title>Login - LudoX</title>
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
   <style>
     :root {
       --red:    #FF4757;
@@ -23,7 +22,7 @@
     }
 
     body {
-      font-family: 'Nunito', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: var(--navy);
       color: var(--white);
       min-height: 100vh;
@@ -38,8 +37,7 @@
       left: 0;
       right: 0;
       z-index: 100;
-      background: rgba(13,27,62,0.95);
-      backdrop-filter: blur(10px);
+      background: var(--navy);
       border-bottom: 1px solid rgba(255,255,255,0.1);
       padding: 16px 32px;
       display: flex;
@@ -66,10 +64,11 @@
     }
 
     .brand {
-      font-family: 'Fredoka One', cursive;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 1.5rem;
       color: white;
       letter-spacing: 0.02em;
+      font-weight: 700;
     }
 
     .nav-links a {
@@ -93,20 +92,6 @@
       align-items: center;
       position: relative;
       padding: 100px 20px 60px;
-      background-image: radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px);
-      background-size: 28px 28px;
-    }
-
-    .main-content::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: radial-gradient(ellipse 60% 40% at 20% 10%, rgba(46,134,255,0.12) 0%, transparent 60%),
-                  radial-gradient(ellipse 50% 40% at 80% 80%, rgba(255,71,87,0.10) 0%, transparent 60%);
-      pointer-events: none;
     }
 
     .container {
@@ -120,11 +105,9 @@
     .card {
       background: rgba(255,255,255,0.05);
       border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 28px;
-      backdrop-filter: blur(10px);
+      border-radius: 8px;
       padding: 48px 40px;
-      box-shadow: 0 40px 100px rgba(0,0,0,0.6);
-      animation: fadeIn 0.6s ease-in-out;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.3);
     }
 
     .card-header {
@@ -138,10 +121,11 @@
     }
 
     h2 {
-      font-family: 'Fredoka One', cursive;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 2rem;
       color: white;
       margin-bottom: 8px;
+      font-weight: 700;
     }
 
     .subtitle {
@@ -169,12 +153,11 @@
       padding: 14px 16px;
       background: rgba(255,255,255,0.07);
       border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 12px;
+      border-radius: 8px;
       color: white;
-      font-family: 'Nunito', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 0.95rem;
       outline: none;
-      transition: border-color 0.2s, box-shadow 0.2s;
     }
 
     input::placeholder {
@@ -183,32 +166,24 @@
 
     input:focus {
       border-color: var(--blue);
-      box-shadow: 0 0 0 3px rgba(46,134,255,0.15);
     }
 
     button {
       width: 100%;
       padding: 16px;
       border: none;
-      border-radius: 14px;
+      border-radius: 8px;
       background: linear-gradient(135deg, var(--blue), #1a6edb);
       color: white;
-      font-family: 'Nunito', sans-serif;
-      font-weight: 800;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-weight: 700;
       font-size: 1rem;
       cursor: pointer;
       margin-top: 8px;
-      transition: transform 0.2s, box-shadow 0.2s;
-      box-shadow: 0 8px 24px rgba(46,134,255,0.3);
     }
 
     button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 32px rgba(46,134,255,0.4);
-    }
-
-    button:active {
-      transform: translateY(0);
+      opacity: 0.9;
     }
 
     .footer-text {
@@ -221,8 +196,7 @@
     .footer-text a {
       color: var(--blue);
       text-decoration: none;
-      font-weight: 800;
-      transition: color 0.2s;
+      font-weight: 700;
     }
 
     .footer-text a:hover {
@@ -245,26 +219,7 @@
       color: var(--green);
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(30px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
 
-    .decorative-dice {
-      position: absolute;
-      font-size: 2.5rem;
-      opacity: 0.08;
-      animation: float 6s ease-in-out infinite;
-    }
-
-    .dice-1 { top: 15%; left: 10%; }
-    .dice-2 { top: 70%; right: 15%; animation-delay: 2s; }
-    .dice-3 { bottom: 20%; left: 20%; animation-delay: 4s; }
-
-    @keyframes float {
-      0%, 100% { transform: translateY(0px) rotate(0deg); }
-      50% { transform: translateY(-20px) rotate(5deg); }
-    }
 
     /* Footer */
     footer {
@@ -294,7 +249,6 @@
       font-weight: 700;
       color: var(--text);
       text-decoration: none;
-      transition: color 0.2s;
     }
 
     .footer-links a:hover {
@@ -318,10 +272,6 @@
 
   <!-- Main Content -->
   <div class="main-content">
-    <div class="decorative-dice dice-1">🎲</div>
-    <div class="decorative-dice dice-2">⚄</div>
-    <div class="decorative-dice dice-3">⚂</div>
-
   <div class="container">
     <div class="card">
       <div class="card-header">
@@ -385,14 +335,21 @@
         body: JSON.stringify({ nickname, password })
       });
 
-      if (res.redirected) {
-        window.location.href = res.url;
+      const data = await res.json();
+      const msg = document.getElementById("message");
+
+      if (data.success) {
+        // Store token securely in sessionStorage
+        sessionStorage.setItem("authToken", data.token);
+        sessionStorage.setItem("userEmail", data.email);
+        sessionStorage.setItem("userNickname", data.nickname);
+        
+        // Redirect to profile WITHOUT token in URL
+        window.location.href = "/profile";
         return;
       }
 
-      const data = await res.text();
-      const msg = document.getElementById("message");
-      msg.innerText = data;
+      msg.innerText = data.message || "Login failed";
       msg.className = "error";
     }
   </script>

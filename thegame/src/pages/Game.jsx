@@ -465,7 +465,7 @@ export default function Game({ players, bots, gameType, multiplayer }) {
     // Always run socket setup if roomCode exists (means multiplayer)
     const params = new URLSearchParams(window.location.search);
     const roomCode = params.get("roomCode");
-    const token = params.get("token");
+    const token = sessionStorage.getItem("authToken") || params.get("token"); // Fallback to URL for backward compatibility
     const email = params.get("email");
     
     if (!multiplayer && !roomCode) return;
@@ -738,7 +738,7 @@ export default function Game({ players, bots, gameType, multiplayer }) {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
+    const token = sessionStorage.getItem("authToken") || params.get("token"); // Fallback to URL for backward compatibility
     if (!token) return;
 
     if (multiplayer) {
@@ -762,7 +762,7 @@ export default function Game({ players, bots, gameType, multiplayer }) {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
+    const token = sessionStorage.getItem("authToken") || params.get("token"); // Fallback to URL for backward compatibility
     if (!token) return;
 
     fetch(`/api/chat/rooms?token=${encodeURIComponent(token)}`)
@@ -777,14 +777,12 @@ export default function Game({ players, bots, gameType, multiplayer }) {
 
   useEffect(() => {
     if (!chatSocket || !chatRoomId) return;
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
+    const token = sessionStorage.getItem("authToken");
     chatSocket.emit("chat-join", { roomId: chatRoomId, token });
   }, [chatSocket, chatRoomId]);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
+    const token = sessionStorage.getItem("authToken");
     if (!token) return;
 
     fetch(`/api/chat/users?token=${encodeURIComponent(token)}`)
@@ -816,8 +814,7 @@ export default function Game({ players, bots, gameType, multiplayer }) {
   }, [chatSocket, dmTarget]);
 
   const loadDmHistory = (user) => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
+    const token = sessionStorage.getItem("authToken");
     if (!token) return;
     setDmTarget(user);
     setDmMessages([]);
@@ -828,8 +825,7 @@ export default function Game({ players, bots, gameType, multiplayer }) {
   };
 
   const sendFriendRequest = (email) => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
+    const token = sessionStorage.getItem("authToken");
     if (!token) return;
     fetch(`/api/chat/friends/request/${encodeURIComponent(email)}?token=${encodeURIComponent(token)}`, { method: "POST" })
       .then(() => {
@@ -844,8 +840,7 @@ export default function Game({ players, bots, gameType, multiplayer }) {
   };
 
   const acceptFriendRequest = (email) => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
+    const token = sessionStorage.getItem("authToken");
     if (!token) return;
     fetch(`/api/chat/friends/accept/${encodeURIComponent(email)}?token=${encodeURIComponent(token)}`, { method: "POST" })
       .then(() => {
@@ -1326,8 +1321,6 @@ let captureOccurred = false;
     newPions[index] = pos;
     const finalState = { ...newState, [color]: newPions };
 
-    emitPlayerMove(finalState, color);
-    
     // After move: check if we need to pass turn
     // In 1v1, player should get 2 rolls per turn
     // Only pass turn after 2 rolls are made
@@ -1368,12 +1361,16 @@ let captureOccurred = false;
 
     if (shouldAnimate) {
       setTimeout(() => {
-        animateStepByStep(animationStartPos, move, color, index, finalState);
+        animateStepByStep(animationStartPos, move, color, index, finalState)
+          .then(() => {
+            emitPlayerMove(finalState, color);
+          });
       }, 50);
 
       return prev;
     }
-    
+
+    emitPlayerMove(finalState, color);
     return finalState;
   });
 };
@@ -1503,8 +1500,7 @@ const findPlayablePawn = (color, move) => {
     if (!chatSocket || !chatRoomId) return;
     const message = chatInput.trim();
     if (!message) return;
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
+    const token = sessionStorage.getItem("authToken");
     chatSocket.emit("chat-message", { roomId: chatRoomId, token, content: message });
     setChatInput("");
   };
@@ -1513,8 +1509,7 @@ const findPlayablePawn = (color, move) => {
     if (!chatSocket || !dmTarget) return;
     const message = dmInput.trim();
     if (!message) return;
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
+    const token = sessionStorage.getItem("authToken");
     chatSocket.emit("dm-message", { token, toEmail: dmTarget.email, content: message });
     setDmInput("");
   };
@@ -2148,6 +2143,8 @@ const findPlayablePawn = (color, move) => {
           </div>
         </div>
 
+        {/* Only show chat panel in multiplayer mode */}
+        {multiplayer && (
         <div className="chat-panel">
           <div className="chat-header">Room Chat</div>
           <div className="chat-tabs">
@@ -2277,6 +2274,7 @@ const findPlayablePawn = (color, move) => {
             </div>
           )}
         </div>
+        )}
       </div>
 
         {bonus > 0 && <p>💥 Bonus 10 pas disponible !</p>}
