@@ -378,14 +378,26 @@ function getLegalMoves(color, state, diceValue) {
    GAME
    =============================== */
 export default function Game({ players, bots, gameType, multiplayer }) {
-  const [dice, setDice] = useState(null);
-  const [bonus, setBonus] = useState(0);
-  const [pions, setPions] = useState({
+  const defaultPionsState = {
     red: [-1, -1, -1, -1],
     green: [-1, -1, -1, -1],
     blue: [-1, -1, -1, -1],
     yellow: [-1, -1, -1, -1],
-  });
+  };
+
+  const normalizePionsState = (candidate) => {
+    const source = candidate && typeof candidate === "object" ? candidate : {};
+    return {
+      red: Array.isArray(source.red) && source.red.length === 4 ? source.red : [...defaultPionsState.red],
+      green: Array.isArray(source.green) && source.green.length === 4 ? source.green : [...defaultPionsState.green],
+      blue: Array.isArray(source.blue) && source.blue.length === 4 ? source.blue : [...defaultPionsState.blue],
+      yellow: Array.isArray(source.yellow) && source.yellow.length === 4 ? source.yellow : [...defaultPionsState.yellow],
+    };
+  };
+
+  const [dice, setDice] = useState(null);
+  const [bonus, setBonus] = useState(0);
+  const [pions, setPions] = useState(defaultPionsState);
   const [socket, setSocket] = useState(null);
   const [playerIndex, setPlayerIndex] = useState(null);
   const [playerColor, setPlayerColor] = useState(null);
@@ -413,13 +425,35 @@ export default function Game({ players, bots, gameType, multiplayer }) {
   const lastRemoteMoveSeqRef = useRef({});
   const reconnectTimeoutRef = useRef(null);
   const disconnectTimeRef = useRef(null);
+  const queryParams = new URLSearchParams(window.location.search);
+  const currentEmail = queryParams.get("email") || sessionStorage.getItem("userEmail") || localStorage.getItem("email") || "";
+  const currentRoomCode = queryParams.get("roomCode") || sessionStorage.getItem("lastRoomCode") || "";
+
+  useEffect(() => {
+    const urlRoomCode = queryParams.get("roomCode");
+    if (urlRoomCode) {
+      sessionStorage.setItem("lastRoomCode", urlRoomCode);
+      return;
+    }
+
+    const savedRoomCode = sessionStorage.getItem("lastRoomCode");
+    if (!savedRoomCode) return;
+
+    const params = new URLSearchParams(window.location.search);
+    params.set("roomCode", savedRoomCode);
+    if (!params.get("multiplayer")) {
+      params.set("multiplayer", "true");
+    }
+    const nextUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState({}, "", nextUrl);
+  }, []);
 
   useEffect(() => {
     // Only setup socket for multiplayer games
     const params = new URLSearchParams(window.location.search);
-    const roomCode = params.get("roomCode");
+    const roomCode = params.get("roomCode") || currentRoomCode;
     const token = sessionStorage.getItem("authToken") || params.get("token"); // Fallback to URL for backward compatibility
-    const email = params.get("email");
+    const email = currentEmail;
     
     // Skip socket setup for single-player games (no multiplayer and no roomCode)
     if (!multiplayer && !roomCode) {
@@ -616,7 +650,7 @@ export default function Game({ players, bots, gameType, multiplayer }) {
 
       lastRemoteMoveSeqRef.current[data.email] = incomingSeq;
       console.log("[move-update] Updating pions state");
-      setPions(data.pions);
+      setPions(normalizePionsState(data.pions));
     });
 
     newSocket.on("dice-rolled", (data) => {
@@ -642,8 +676,8 @@ export default function Game({ players, bots, gameType, multiplayer }) {
 
     newSocket.on("game-state-recovery", (data) => {
       console.log("[game-state-recovery] Received:", data);
-      if (data.pions) {
-        setPions(data.pions);
+      if (data.pions && typeof data.pions === "object") {
+        setPions(normalizePionsState(data.pions));
       }
       if (typeof data.activeColor !== "undefined" && data.turnIndex !== undefined) {
         setActivePlayer(data.turnIndex);
@@ -662,7 +696,7 @@ export default function Game({ players, bots, gameType, multiplayer }) {
     return () => {
       newSocket.disconnect();
     };
-  }, [multiplayer, gameType]);
+  }, [multiplayer, gameType, currentEmail, currentRoomCode]);
 
 
   useEffect(() => {
@@ -712,43 +746,77 @@ export default function Game({ players, bots, gameType, multiplayer }) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = sessionStorage.getItem("authToken") || params.get("token"); // Fallback to URL for backward compatibility
+    
+    // For multiplayer games, use a simpler approach - just use "general" as the room ID
+    // This works because the socket handler is now more lenient
+    if (multiplayer) {
+      setChatRoomId("general");
+      console.log("[Chat] Using general room for multiplayer");
+      return;
+    }
+    
     if (!token) return;
 
     fetch(`/api/chat/rooms?token=${encodeURIComponent(token)}`)
       .then((r) => r.json())
       .then((rooms) => {
-        if (!Array.isArray(rooms)) return;
+        if (!Array.isArray(rooms)) {
+          console.log("[Chat] No rooms from API, using fallback");
+          setChatRoomId("general");
+          return;
+        }
         const general = rooms.find((r) => r.name === "general") || rooms[0];
-        if (general?._id) setChatRoomId(general._id);
+        if (general?._id) {
+          setChatRoomId(general._id);
+        } else {
+          console.log("[Chat] No room found, using fallback");
+          setChatRoomId("general");
+        }
       })
-      .catch(() => {});
-  }, []);
+      .catch((err) => {
+        console.log("[Chat] API error, using fallback:", err.message);
+        setChatRoomId("general");
+      });
+  }, [multiplayer]);
 
   useEffect(() => {
-    if (!chatSocket || !chatRoomId) return;
+    if (!chatSocket || !chatRoomId) {
+      console.log("[chat-join effect] Not ready - chatSocket:", !!chatSocket, "chatRoomId:", chatRoomId);
+      return;
+    }
+    
     const token = sessionStorage.getItem("authToken");
+    console.log("[chat-join effect] Emitting chat-join for room:", chatRoomId, "token:", !!token);
     chatSocket.emit("chat-join", { roomId: chatRoomId, token });
   }, [chatSocket, chatRoomId]);
 
   useEffect(() => {
     const token = sessionStorage.getItem("authToken");
-    if (!token) return;
+    const email = currentEmail;
+    if (!token && !email) return;
 
-    fetch(`/api/chat/users?token=${encodeURIComponent(token)}`)
-      .then((r) => r.json())
-      .then((data) => Array.isArray(data) && setChatUsers(data))
-      .catch(() => {});
+    const query = `token=${encodeURIComponent(token || "")}&email=${encodeURIComponent(email || "")}`;
+    const refreshChatLists = () => {
+      fetch(`/api/chat/users?${query}`)
+        .then((r) => r.json())
+        .then((data) => Array.isArray(data) && setChatUsers(data))
+        .catch(() => {});
 
-    fetch(`/api/chat/friends?token=${encodeURIComponent(token)}`)
-      .then((r) => r.json())
-      .then((data) => Array.isArray(data) && setChatFriends(data))
-      .catch(() => {});
+      fetch(`/api/chat/friends?${query}`)
+        .then((r) => r.json())
+        .then((data) => Array.isArray(data) && setChatFriends(data))
+        .catch(() => {});
 
-    fetch(`/api/chat/friends/pending?token=${encodeURIComponent(token)}`)
-      .then((r) => r.json())
-      .then((data) => Array.isArray(data) && setChatPending(data))
-      .catch(() => {});
-  }, [multiplayer]);
+      fetch(`/api/chat/friends/pending?${query}`)
+        .then((r) => r.json())
+        .then((data) => Array.isArray(data) && setChatPending(data))
+        .catch(() => {});
+    };
+
+    refreshChatLists();
+    const pollId = setInterval(refreshChatLists, 4000);
+    return () => clearInterval(pollId);
+  }, [multiplayer, currentEmail]);
 
   useEffect(() => {
     if (!chatSocket) return;
@@ -764,10 +832,10 @@ export default function Game({ players, bots, gameType, multiplayer }) {
 
   const loadDmHistory = (user) => {
     const token = sessionStorage.getItem("authToken");
-    if (!token) return;
+    if (!token && !currentEmail) return;
     setDmTarget(user);
     setDmMessages([]);
-    fetch(`/api/chat/dm/${encodeURIComponent(user.email)}?token=${encodeURIComponent(token)}`)
+    fetch(`/api/chat/dm/${encodeURIComponent(user.email)}?token=${encodeURIComponent(token || "")}&email=${encodeURIComponent(currentEmail || "")}`)
       .then((r) => r.json())
       .then((data) => Array.isArray(data) && setDmMessages(data))
       .catch(() => {});
@@ -775,42 +843,48 @@ export default function Game({ players, bots, gameType, multiplayer }) {
 
   const sendFriendRequest = (email) => {
     const token = sessionStorage.getItem("authToken");
-    if (!token) return;
-    fetch(`/api/chat/friends/request/${encodeURIComponent(email)}?token=${encodeURIComponent(token)}`, { method: "POST" })
+    if (!token && !currentEmail) return;
+    fetch(`/api/chat/friends/request/${encodeURIComponent(email)}?token=${encodeURIComponent(token || "")}&email=${encodeURIComponent(currentEmail || "")}`, { method: "POST" })
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to send request");
+        return r.json();
+      })
       .then(() => {
-        // Refresh pending requests
-        fetch(`/api/chat/friends/pending?token=${encodeURIComponent(token)}`)
-          .then((r) => r.json())
-          .then((data) => Array.isArray(data) && setChatPending(data));
-        // Remove from available users list
         setChatUsers(prev => prev.filter(u => u.email !== email));
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error("[sendFriendRequest]", err.message);
+      });
   };
 
   const acceptFriendRequest = (email) => {
     const token = sessionStorage.getItem("authToken");
-    if (!token) return;
-    fetch(`/api/chat/friends/accept/${encodeURIComponent(email)}?token=${encodeURIComponent(token)}`, { method: "POST" })
+    if (!token && !currentEmail) return;
+    fetch(`/api/chat/friends/accept/${encodeURIComponent(email)}?token=${encodeURIComponent(token || "")}&email=${encodeURIComponent(currentEmail || "")}`, { method: "POST" })
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to accept request");
+        return r.json();
+      })
       .then(() => {
         // Refresh friends list
-        fetch(`/api/chat/friends?token=${encodeURIComponent(token)}`)
+        fetch(`/api/chat/friends?token=${encodeURIComponent(token || "")}&email=${encodeURIComponent(currentEmail || "")}`)
           .then((r) => r.json())
           .then((data) => Array.isArray(data) && setChatFriends(data));
         // Refresh pending requests
-        fetch(`/api/chat/friends/pending?token=${encodeURIComponent(token)}`)
+        fetch(`/api/chat/friends/pending?token=${encodeURIComponent(token || "")}&email=${encodeURIComponent(currentEmail || "")}`)
           .then((r) => r.json())
           .then((data) => Array.isArray(data) && setChatPending(data));
         // Remove from available users list
         setChatUsers(prev => prev.filter(u => u.email !== email));
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error("[acceptFriendRequest]", err.message);
+      });
   };
   
   const emitPlayerMove = (stateToSend, colorOverride) => {
     if (!socket || !multiplayer || !stateToSend) return;
-    const params = new URLSearchParams(window.location.search);
-    const email = params.get("email");
+    const email = currentEmail;
     const senderColor = colorOverride || playerColor;
     localMoveSeqRef.current += 1;
     socket.emit("player-move", {
@@ -828,7 +902,17 @@ export default function Game({ players, bots, gameType, multiplayer }) {
   }, [pions]);
   
   useEffect(() => {
-    diceAudioRef.current = new Audio(diceSound);
+    try {
+      const audio = new Audio(diceSound);
+      audio.addEventListener("error", () => {
+        console.warn("[dice-audio] Failed to decode dice sound, disabling audio.");
+        diceAudioRef.current = null;
+      });
+      diceAudioRef.current = audio;
+    } catch (err) {
+      console.warn("[dice-audio] Audio init failed, disabling dice sound.", err);
+      diceAudioRef.current = null;
+    }
   }, []);
 
   const [rollingPlayer, setRollingPlayer] = useState(null);
@@ -918,7 +1002,8 @@ const canControlColor = (color) => {
   }, [activePlayer, dice, bonus, rollCount, PLAYERS, BOT_PLAYERS, multiplayer]);
 
 const centerPawns = (color) => {
-  return pions[color].filter((pos) => {
+  const colorPions = Array.isArray(pions[color]) ? pions[color] : [];
+  return colorPions.filter((pos) => {
     if (pos === -1) return false;
     const cell = PATHS[color][pos];
     return cell && getCellType(cell.x, cell.y).type === "center";
@@ -1350,8 +1435,9 @@ const botPlay = (color) => {
 };
 
 const findPlayablePawn = (color, move) => {
-  for (let i = 0; i < pions[color].length; i++) {
-    const pos = pions[color][i];
+  const colorPions = Array.isArray(pions[color]) ? pions[color] : [];
+  for (let i = 0; i < colorPions.length; i++) {
+    const pos = colorPions[i];
 
 
     if (pos === -1) {
@@ -1374,10 +1460,26 @@ const findPlayablePawn = (color, move) => {
 };
 
   const sendChatMessage = () => {
-    if (!chatSocket || !chatRoomId) return;
+    console.log("[sendChatMessage] chatSocket:", !!chatSocket, "chatRoomId:", chatRoomId, "input:", chatInput);
+    
+    if (!chatSocket) {
+      console.log("[sendChatMessage] No chat socket");
+      return;
+    }
+    
+    if (!chatRoomId) {
+      console.log("[sendChatMessage] No chat room ID");
+      return;
+    }
+    
     const message = chatInput.trim();
-    if (!message) return;
+    if (!message) {
+      console.log("[sendChatMessage] Empty message");
+      return;
+    }
+    
     const token = sessionStorage.getItem("authToken");
+    console.log("[sendChatMessage] Emitting message to room:", chatRoomId);
     chatSocket.emit("chat-message", { roomId: chatRoomId, token, content: message });
     setChatInput("");
   };
@@ -1387,7 +1489,7 @@ const findPlayablePawn = (color, move) => {
     const message = dmInput.trim();
     if (!message) return;
     const token = sessionStorage.getItem("authToken");
-    chatSocket.emit("dm-message", { token, toEmail: dmTarget.email, content: message });
+    chatSocket.emit("dm-message", { token, fromEmail: currentEmail, toEmail: dmTarget.email, content: message });
     setDmInput("");
   };
 
@@ -1556,7 +1658,8 @@ const findPlayablePawn = (color, move) => {
         const renderPions = multiplayer ? allPionsForRendering : pions;
         
         Object.keys(renderPions).forEach(color => {
-          renderPions[color].forEach((pos, i) => {
+          const colorPions = Array.isArray(renderPions[color]) ? renderPions[color] : [];
+          colorPions.forEach((pos, i) => {
             if (pos >= 0 && pos < PATHS[color].length) {
                 const pionPos = PATHS[color][pos];
             if (pionPos.x === x && pionPos.y === y) {

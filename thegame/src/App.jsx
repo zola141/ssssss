@@ -9,11 +9,14 @@ export default function App() {
 
   const params = new URLSearchParams(window.location.search);
   const urlMultiplayer = params.get("multiplayer");
-  const roomCode = params.get("roomCode");
-  const shouldUseUrl = roomCode || urlMultiplayer !== null;
+  const roomCodeFromUrl = params.get("roomCode");
+  const roomCodeFromSession = sessionStorage.getItem("lastRoomCode");
+  const roomCode = roomCodeFromUrl || roomCodeFromSession;
+  const isGamePath = window.location.pathname.startsWith("/game");
+  const shouldUseUrl = isGamePath || !!roomCode || urlMultiplayer !== null || params.has("email");
 
   if (shouldUseUrl) {
-    const multiplayer = roomCode ? true : urlMultiplayer !== "false";
+    const multiplayer = roomCode ? true : urlMultiplayer === "true";
     const effectiveGameType = "1v1";
     const players = ["red", "yellow"];
     const bots = multiplayer ? [] : ["yellow"];

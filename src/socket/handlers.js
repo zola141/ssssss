@@ -1,4 +1,4 @@
-import { GameRoom, User, ChatMessage, DirectMessage } from "../models/index.js";
+import { GameRoom, User, ChatMessage, DirectMessage, Friendship } from "../models/index.js";
 import { authTokens } from "../middleware/auth.js";
 import { checkAndUnlockAchievements, markUserOnline, markUserOffline } from "../utils/helpers.js";
 import { GRACE_PERIOD } from "../config.js";
@@ -7,22 +7,36 @@ export const initializeSocketHandlers = (io, gameRooms, playerSockets, onlineUse
   io.on("connection", (socket) => {
     console.log("Player connected:", socket.id);
 
+    const joinUserPrivateRoom = (email) => {
+      if (!email) return;
+      socket.join(`user:${email}`);
+    };
+
     const handshakeToken = socket.handshake?.auth?.token;
     if (handshakeToken && authTokens.has(handshakeToken)) {
       const auth = authTokens.get(handshakeToken);
       socket.data.userEmail = auth.email;
       markUserOnline(onlineUsers, auth.email);
+      joinUserPrivateRoom(auth.email);
     }
 
     socket.on("join-room", (data) => {
       const { email, gameType, token } = data;
+      const resolvedEmail = email || (authTokens.has(token) ? authTokens.get(token)?.email : socket.data.userEmail);
       
       // Log for debugging
-      console.log(`[join-room] email: ${email}, gameType: ${gameType}, token valid: ${authTokens.has(token)}`);
+      console.log(`[join-room] email: ${resolvedEmail}, gameType: ${gameType}, token valid: ${authTokens.has(token)}`);
+      
+      // Store email in socket data for chat functionality
+      if (resolvedEmail) {
+        socket.data.userEmail = resolvedEmail;
+        console.log(`[join-room] Set socket.data.userEmail to: ${resolvedEmail}`);
+        joinUserPrivateRoom(resolvedEmail);
+      }
       
       // If token not in memory store, we'll still allow connection but will rely on email validation
       // In production, validate token against database/JWT
-      if (!authTokens.has(token) && !email) {
+      if (!authTokens.has(token) && !resolvedEmail) {
         console.log("[Socket] Missing both token and email");
         socket.emit("room-error", { message: "Missing authentication" });
         return;
@@ -48,8 +62,8 @@ export const initializeSocketHandlers = (io, gameRooms, playerSockets, onlineUse
       const playerIndex = room.players.length;
       const playerColor = turnOrder[playerIndex];
       const userId = authTokens.has(token) ? authTokens.get(token).userId : `temp_${Date.now()}`;
-      room.players.push({ email, socketId: socket.id, userId, color: playerColor });
-      playerSockets.set(socket.id, { email, roomId: room.id });
+      room.players.push({ email: resolvedEmail, socketId: socket.id, userId, color: playerColor });
+      playerSockets.set(socket.id, { email: resolvedEmail, roomId: room.id });
 
       socket.join(room.id);
       socket.emit("room-joined", { roomId: room.id, players: room.players, playerIndex, playerCount: room.players.length, gameType: "1v1", gameInProgress: room.status === "playing" });
@@ -76,10 +90,18 @@ export const initializeSocketHandlers = (io, gameRooms, playerSockets, onlineUse
 
     socket.on("join-room-code", async (data) => {
       const { roomCode, email, token } = data;
+      const resolvedEmail = email || (authTokens.has(token) ? authTokens.get(token)?.email : socket.data.userEmail);
+      
+      // Store email in socket data for chat functionality
+      if (resolvedEmail) {
+        socket.data.userEmail = resolvedEmail;
+        console.log(`[join-room-code] Set socket.data.userEmail to: ${resolvedEmail}`);
+        joinUserPrivateRoom(resolvedEmail);
+      }
 
-      console.log(`[join-room-code] roomCode: ${roomCode}, email: ${email}, token valid: ${authTokens.has(token)}`);
+      console.log(`[join-room-code] roomCode: ${roomCode}, email: ${resolvedEmail}, token valid: ${authTokens.has(token)}`);
 
-      if (!email || !roomCode) {
+      if (!resolvedEmail || !roomCode) {
         socket.emit("room-error", { message: "Missing email or room code" });
         return;
       }
@@ -91,7 +113,7 @@ export const initializeSocketHandlers = (io, gameRooms, playerSockets, onlineUse
           return;
         }
 
-        const isRoomMember = room.players.some((player) => player.email === email);
+        const isRoomMember = room.players.some((player) => player.email === resolvedEmail);
         if (!isRoomMember) {
           socket.emit("room-error", { message: "You are not a member of this room" });
           return;
@@ -125,8 +147,8 @@ export const initializeSocketHandlers = (io, gameRooms, playerSockets, onlineUse
           gameRooms.set(roomCode, internalRoom);
         }
 
-        const user = await User.findOne({ email });
-        const playerIndex = internalRoom.players.findIndex((player) => player.email === email);
+        const user = await User.findOne({ email: resolvedEmail });
+        const playerIndex = internalRoom.players.findIndex((player) => player.email === resolvedEmail);
         const playerColor = (playerIndex >= 0 ? internalRoom.players[playerIndex]?.color : null) || colors[playerIndex] || colors[0] || "red";
 
         if (playerIndex < 0) {
@@ -142,15 +164,15 @@ export const initializeSocketHandlers = (io, gameRooms, playerSockets, onlineUse
 
         internalRoom.players[playerIndex] = {
           ...internalRoom.players[playerIndex],
-          email,
+          email: resolvedEmail,
           socketId: socket.id,
-          nickname: user?.nickname || email,
+          nickname: user?.nickname || resolvedEmail,
           profileImageUrl: user?.profileImageUrl || "",
           userId: authTokens.has(token) ? authTokens.get(token).userId : user?._id || `temp_${Date.now()}`,
           color: playerColor
         };
 
-        playerSockets.set(socket.id, { email, roomId: roomCode });
+        playerSockets.set(socket.id, { email: resolvedEmail, roomId: roomCode });
         socket.join(roomCode);
 
         socket.emit("room-joined", {
@@ -207,6 +229,22 @@ export const initializeSocketHandlers = (io, gameRooms, playerSockets, onlineUse
     socket.on("request-game-state", (data) => {
       const { email, roomId } = data;
       const room = gameRooms.get(roomId);
+      const defaultPions = {
+        red: [-1, -1, -1, -1],
+        green: [-1, -1, -1, -1],
+        blue: [-1, -1, -1, -1],
+        yellow: [-1, -1, -1, -1]
+      };
+
+      const normalizePions = (candidate) => {
+        const source = candidate && typeof candidate === "object" ? candidate : {};
+        return {
+          red: Array.isArray(source.red) && source.red.length === 4 ? source.red : [...defaultPions.red],
+          green: Array.isArray(source.green) && source.green.length === 4 ? source.green : [...defaultPions.green],
+          blue: Array.isArray(source.blue) && source.blue.length === 4 ? source.blue : [...defaultPions.blue],
+          yellow: Array.isArray(source.yellow) && source.yellow.length === 4 ? source.yellow : [...defaultPions.yellow]
+        };
+      };
       
       if (!room) {
         console.log("[request-game-state] Room not found:", roomId);
@@ -220,7 +258,7 @@ export const initializeSocketHandlers = (io, gameRooms, playerSockets, onlineUse
       }
 
       const gameState = {
-        pions: room.gameState?.pions || {},
+        pions: normalizePions(room.gameState?.pions),
         remotePions: room.gameState?.remotePions || {},
         activeColor: room.turnOrder?.[room.turnIndex] || null,
         turnIndex: room.turnIndex ?? 0,
@@ -349,9 +387,11 @@ export const initializeSocketHandlers = (io, gameRooms, playerSockets, onlineUse
         }
         
         if (!user) {
-          console.log("[chat-message] No user found");
+          console.log("[chat-message] No user found, socket.data.userEmail:", socket.data.userEmail);
           return;
         }
+
+        console.log("[chat-message] Found user:", user.email, user.nickname);
 
         const msg = await ChatMessage.create({
           roomId,
@@ -361,6 +401,7 @@ export const initializeSocketHandlers = (io, gameRooms, playerSockets, onlineUse
           content: content.trim()
         });
 
+        console.log("[chat-message] Message saved to DB with ID:", msg._id);
         console.log("[chat-message] Broadcasting to room:", roomId);
         io.to(roomId).emit("chat-message", msg);
       } catch (err) {
@@ -368,15 +409,39 @@ export const initializeSocketHandlers = (io, gameRooms, playerSockets, onlineUse
       }
     });
 
-    socket.on("dm-message", async ({ token, toEmail, content }) => {
-      if (!token || !authTokens.has(token)) return;
+    socket.on("dm-message", async ({ token, fromEmail, toEmail, content }) => {
       if (!toEmail || !content || !content.trim()) return;
 
       try {
-        const auth = authTokens.get(token);
-        const sender = await User.findOne({ email: auth.email });
+        let senderEmail = null;
+
+        if (token && authTokens.has(token)) {
+          senderEmail = authTokens.get(token).email;
+        }
+
+        if (!senderEmail && socket.data.userEmail) {
+          senderEmail = socket.data.userEmail;
+        }
+
+        if (!senderEmail && fromEmail) {
+          senderEmail = fromEmail;
+        }
+
+        if (!senderEmail) return;
+
+        const sender = await User.findOne({ email: senderEmail });
         const receiver = await User.findOne({ email: toEmail });
         if (!sender || !receiver) return;
+
+        const friendship = await Friendship.findOne({
+          status: "accepted",
+          $or: [
+            { requesterEmail: sender.email, receiverEmail: receiver.email },
+            { requesterEmail: receiver.email, receiverEmail: sender.email }
+          ]
+        }).lean();
+
+        if (!friendship) return;
 
         const dm = await DirectMessage.create({
           senderEmail: sender.email,
@@ -384,7 +449,7 @@ export const initializeSocketHandlers = (io, gameRooms, playerSockets, onlineUse
           content: content.trim()
         });
 
-        io.emit("dm-message", {
+        const payload = {
           _id: dm._id,
           senderEmail: sender.email,
           receiverEmail: receiver.email,
@@ -392,7 +457,10 @@ export const initializeSocketHandlers = (io, gameRooms, playerSockets, onlineUse
           senderAvatar: sender.profileImageUrl,
           content: dm.content,
           createdAt: dm.createdAt
-        });
+        };
+
+        io.to(`user:${sender.email}`).emit("dm-message", payload);
+        io.to(`user:${receiver.email}`).emit("dm-message", payload);
       } catch (err) {
         console.error("DM error:", err.message);
       }
