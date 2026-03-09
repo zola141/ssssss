@@ -7,6 +7,17 @@ export const initializeSocketHandlers = (io, gameRooms, playerSockets, onlineUse
   io.on("connection", (socket) => {
     console.log("Player connected:", socket.id);
 
+    const ensurePresenceOnline = (email) => {
+      if (!email) return;
+      if (!socket.data.userEmail) {
+        socket.data.userEmail = email;
+      }
+      if (!socket.data.presenceMarked) {
+        markUserOnline(onlineUsers, email);
+        socket.data.presenceMarked = true;
+      }
+    };
+
     const joinUserPrivateRoom = (email) => {
       if (!email) return;
       socket.join(`user:${email}`);
@@ -15,8 +26,7 @@ export const initializeSocketHandlers = (io, gameRooms, playerSockets, onlineUse
     const handshakeToken = socket.handshake?.auth?.token;
     if (handshakeToken && authTokens.has(handshakeToken)) {
       const auth = authTokens.get(handshakeToken);
-      socket.data.userEmail = auth.email;
-      markUserOnline(onlineUsers, auth.email);
+      ensurePresenceOnline(auth.email);
       joinUserPrivateRoom(auth.email);
     }
 
@@ -29,7 +39,7 @@ export const initializeSocketHandlers = (io, gameRooms, playerSockets, onlineUse
       
       // Store email in socket data for chat functionality
       if (resolvedEmail) {
-        socket.data.userEmail = resolvedEmail;
+        ensurePresenceOnline(resolvedEmail);
         console.log(`[join-room] Set socket.data.userEmail to: ${resolvedEmail}`);
         joinUserPrivateRoom(resolvedEmail);
       }
@@ -90,34 +100,73 @@ export const initializeSocketHandlers = (io, gameRooms, playerSockets, onlineUse
 
     socket.on("join-room-code", async (data) => {
       const { roomCode, email, token } = data;
-      const resolvedEmail = email || (authTokens.has(token) ? authTokens.get(token)?.email : socket.data.userEmail);
-      
-      // Store email in socket data for chat functionality
-      if (resolvedEmail) {
-        socket.data.userEmail = resolvedEmail;
-        console.log(`[join-room-code] Set socket.data.userEmail to: ${resolvedEmail}`);
-        joinUserPrivateRoom(resolvedEmail);
-      }
+      const requestedIdentity = email || (authTokens.has(token) ? authTokens.get(token)?.email : socket.data.userEmail);
 
-      console.log(`[join-room-code] roomCode: ${roomCode}, email: ${resolvedEmail}, token valid: ${authTokens.has(token)}`);
-
-      if (!resolvedEmail || !roomCode) {
+      if (!requestedIdentity || !roomCode) {
         socket.emit("room-error", { message: "Missing email or room code" });
         return;
       }
 
       try {
+        let canonicalEmail = null;
+        const normalizedInput = requestedIdentity.trim().toLowerCase();
+        const canonicalUser = await User.findOne({
+          $or: [
+            { email: requestedIdentity },
+            { email: normalizedInput },
+            { nickname: requestedIdentity },
+            { nickname: normalizedInput }
+          ]
+        }).select("email nickname");
+
+        if (canonicalUser?.email) {
+          canonicalEmail = canonicalUser.email;
+        }
+
         const room = await GameRoom.findOne({ roomCode });
         if (!room) {
           socket.emit("room-error", { message: "Room not found" });
           return;
         }
 
-        const isRoomMember = room.players.some((player) => player.email === resolvedEmail);
-        if (!isRoomMember) {
+        const identityCandidates = [requestedIdentity, normalizedInput, canonicalEmail]
+          .filter(Boolean)
+          .map((value) => String(value).trim().toLowerCase());
+
+        const matchedRoomPlayer = room.players.find((player) => {
+          const playerEmail = (player.email || "").trim().toLowerCase();
+          const playerNickname = (player.nickname || "").trim().toLowerCase();
+          return identityCandidates.includes(playerEmail) || identityCandidates.includes(playerNickname);
+        });
+
+        if (!matchedRoomPlayer) {
+          console.log("[join-room-code] Membership mismatch", {
+            roomCode,
+            requestedIdentity,
+            canonicalEmail,
+            roomPlayers: room.players.map((p) => ({ email: p.email, nickname: p.nickname }))
+          });
           socket.emit("room-error", { message: "You are not a member of this room" });
           return;
         }
+
+        const roomMemberEmail = matchedRoomPlayer.email;
+        const presenceUser = await User.findOne({
+          $or: [
+            { email: roomMemberEmail },
+            { nickname: roomMemberEmail },
+            ...(canonicalEmail ? [{ email: canonicalEmail }, { nickname: canonicalEmail }] : [])
+          ]
+        }).select("email nickname profileImageUrl");
+
+        const presenceEmail = presenceUser?.email || canonicalEmail || roomMemberEmail;
+        if (presenceEmail) {
+          ensurePresenceOnline(presenceEmail);
+          console.log(`[join-room-code] Set socket.data.userEmail to: ${presenceEmail}`);
+          joinUserPrivateRoom(presenceEmail);
+        }
+
+        console.log(`[join-room-code] roomCode: ${roomCode}, requested: ${requestedIdentity}, memberEmail: ${roomMemberEmail}, token valid: ${authTokens.has(token)}`);
 
         if (room.players.length > room.maxPlayers) {
           socket.emit("room-error", { message: "Room is full" });
@@ -147,8 +196,8 @@ export const initializeSocketHandlers = (io, gameRooms, playerSockets, onlineUse
           gameRooms.set(roomCode, internalRoom);
         }
 
-        const user = await User.findOne({ email: resolvedEmail });
-        const playerIndex = internalRoom.players.findIndex((player) => player.email === resolvedEmail);
+        const user = presenceUser || await User.findOne({ email: roomMemberEmail });
+        const playerIndex = internalRoom.players.findIndex((player) => player.email === roomMemberEmail);
         const playerColor = (playerIndex >= 0 ? internalRoom.players[playerIndex]?.color : null) || colors[playerIndex] || colors[0] || "red";
 
         if (playerIndex < 0) {
@@ -164,15 +213,15 @@ export const initializeSocketHandlers = (io, gameRooms, playerSockets, onlineUse
 
         internalRoom.players[playerIndex] = {
           ...internalRoom.players[playerIndex],
-          email: resolvedEmail,
+          email: roomMemberEmail,
           socketId: socket.id,
-          nickname: user?.nickname || resolvedEmail,
+          nickname: user?.nickname || roomMemberEmail,
           profileImageUrl: user?.profileImageUrl || "",
           userId: authTokens.has(token) ? authTokens.get(token).userId : user?._id || `temp_${Date.now()}`,
           color: playerColor
         };
 
-        playerSockets.set(socket.id, { email: resolvedEmail, roomId: roomCode });
+        playerSockets.set(socket.id, { email: roomMemberEmail, roomId: roomCode });
         socket.join(roomCode);
 
         socket.emit("room-joined", {
@@ -343,9 +392,12 @@ export const initializeSocketHandlers = (io, gameRooms, playerSockets, onlineUse
       if (token && authTokens.has(token)) {
         const auth = authTokens.get(token);
         if (auth?.email && !socket.data.userEmail) {
-          socket.data.userEmail = auth.email;
-          markUserOnline(onlineUsers, auth.email);
+          ensurePresenceOnline(auth.email);
         }
+      }
+
+      if (socket.data.userEmail) {
+        ensurePresenceOnline(socket.data.userEmail);
       }
       
       socket.join(roomId);
@@ -555,8 +607,9 @@ export const initializeSocketHandlers = (io, gameRooms, playerSockets, onlineUse
     });
 
     socket.on("disconnect", () => {
-      if (socket.data?.userEmail) {
+      if (socket.data?.userEmail && socket.data?.presenceMarked) {
         markUserOffline(onlineUsers, socket.data.userEmail);
+        socket.data.presenceMarked = false;
       }
       const playerInfo = playerSockets.get(socket.id);
       if (playerInfo) {

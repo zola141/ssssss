@@ -5,7 +5,9 @@ import { DEFAULT_AVATAR_URL } from "../config.js";
 import { isUserOnline as checkOnline } from "../utils/helpers.js";
 
 const router = express.Router();
-const onlineUsers = new Map();
+const routeOnlineUsersFallback = new Map();
+
+const getOnlineUsersMap = (req) => req.app?.locals?.onlineUsers || routeOnlineUsersFallback;
 
 const resolveAuthEmail = (req) => {
   if (req.user?.email) return req.user.email;
@@ -50,6 +52,7 @@ router.get("/rooms/:id/messages", requireAuth, async (req, res) => {
 router.get("/users", async (req, res) => {
   try {
     const me = resolveAuthEmail(req);
+    const onlineUsers = getOnlineUsersMap(req);
     
     const users = await User.find(me ? { email: { $ne: me } } : {})
       .select("email nickname profileImageUrl")
@@ -68,6 +71,7 @@ router.get("/users", async (req, res) => {
 router.get("/friends", async (req, res) => {
   try {
     const me = resolveAuthEmail(req);
+    const onlineUsers = getOnlineUsersMap(req);
     
     if (!me) {
       return res.json([]);
@@ -96,6 +100,7 @@ router.get("/friends", async (req, res) => {
 router.get("/friends/pending", async (req, res) => {
   try {
     const me = resolveAuthEmail(req);
+    const onlineUsers = getOnlineUsersMap(req);
     
     if (!me) {
       return res.json([]);

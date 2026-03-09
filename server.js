@@ -157,6 +157,7 @@ setupAuthRoutes(app, upload);
 const gameRooms = new Map();
 const playerSockets = new Map();
 const onlineUsers = new Map();
+app.locals.onlineUsers = onlineUsers;
 
 // Connect to MongoDB
 mongoose.connect(mongoUri)
