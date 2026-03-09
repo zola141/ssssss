@@ -415,13 +415,18 @@ export default function Game({ players, bots, gameType, multiplayer }) {
   const disconnectTimeRef = useRef(null);
 
   useEffect(() => {
-    // Always run socket setup if roomCode exists (means multiplayer)
+    // Only setup socket for multiplayer games
     const params = new URLSearchParams(window.location.search);
     const roomCode = params.get("roomCode");
     const token = sessionStorage.getItem("authToken") || params.get("token"); // Fallback to URL for backward compatibility
     const email = params.get("email");
     
-    if (!multiplayer && !roomCode) return;
+    // Skip socket setup for single-player games (no multiplayer and no roomCode)
+    if (!multiplayer && !roomCode) {
+      // For single-player, set connection status to "offline" since we don't need socket
+      setConnectionStatus("offline");
+      return;
+    }
 
     const newSocket = io('http://localhost:3000', {
       auth: { token },
@@ -454,7 +459,10 @@ export default function Game({ players, bots, gameType, multiplayer }) {
 
     newSocket.on("connect_error", (error) => {
       console.error("[Socket] Connection error:", error);
-      setConnectionStatus("connecting");
+      // Stay in "connecting" state, don't show error banner yet
+      if (connectionStatus !== "connected") {
+        setConnectionStatus("connecting");
+      }
       setReconnectAttempt(prev => prev + 1);
     });
 
@@ -475,8 +483,11 @@ export default function Game({ players, bots, gameType, multiplayer }) {
     });
 
     newSocket.on("error", (err) => {
-      console.error("[Socket] Error:", err);
-      setConnectionStatus("error");
+      console.error("[Socket] Error event:", err);
+      // Only set to error status if we've lost a previously working connection
+      if (connectionStatus === "connected" || connectionStatus === "reconnecting") {
+        setConnectionStatus("error");
+      }
     });
 
     newSocket.on("disconnect", (reason) => {
@@ -586,15 +597,25 @@ export default function Game({ players, bots, gameType, multiplayer }) {
     });
 
     newSocket.on("move-update", (data) => {
-      if (!data?.email || !data?.pions) return;
+      console.log("[move-update] Received:", data);
+      
+      if (!data?.email || !data?.pions) {
+        console.log("[move-update] Invalid data, missing email or pions");
+        return;
+      }
 
       const incomingSeq = typeof data.moveSeq === "number" ? data.moveSeq : 0;
       const lastSeqForSender = lastRemoteMoveSeqRef.current[data.email] ?? -1;
+      
+      console.log("[move-update] Sequence check - incoming:", incomingSeq, "last:", lastSeqForSender);
+      
       if (incomingSeq <= lastSeqForSender) {
+        console.log("[move-update] Duplicate move detected, ignoring");
         return;
       }
 
       lastRemoteMoveSeqRef.current[data.email] = incomingSeq;
+      console.log("[move-update] Updating pions state");
       setPions(data.pions);
     });
 
@@ -1393,7 +1414,7 @@ const findPlayablePawn = (color, move) => {
         <h1>Parchisi 🎲</h1>
 
         {/* Connection Status Banner */}
-        {connectionStatus !== "connected" && (
+        {connectionStatus !== "connected" && connectionStatus !== "offline" && (
           <div style={{
             padding: "12px 16px",
             marginBottom: "16px",

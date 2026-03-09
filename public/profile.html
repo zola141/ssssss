@@ -618,9 +618,20 @@
 
   <script>
     const params = new URLSearchParams(window.location.search);
-    // Get token from sessionStorage instead of URL
-    let token = sessionStorage.getItem("authToken");
-    let email = sessionStorage.getItem("userEmail");
+    // Get token from sessionStorage (priority) or localStorage (fallback) 
+    let token = sessionStorage.getItem("authToken") || localStorage.getItem("token");
+    let email = sessionStorage.getItem("userEmail") || localStorage.getItem("email");
+    
+    // Ensure we have auth
+    if (!token || !email) {
+      // Try to recover from URL params (if redirected with params)
+      token = params.get("token") || token;
+      email = params.get("email") || email;
+      
+      // Store in sessionStorage for this session
+      if (token) sessionStorage.setItem("authToken", token);
+      if (email) sessionStorage.setItem("userEmail", email);
+    }
     
     let currentUser = null;
 
@@ -677,7 +688,16 @@
     }
 
     function playAgainstBots() {
-      window.location.href = `/game?multiplayer=false&gameType=1v1`;
+      const token = localStorage.getItem('token');
+      const email = localStorage.getItem('email');
+      if (!token) {
+        alert("Authentication token not found. Please login again.");
+        window.location.href = "/login";
+        return;
+      }
+      // Store token in sessionStorage for the game to use
+      sessionStorage.setItem('authToken', token);
+      window.location.href = `/game?multiplayer=false&gameType=1v1&token=${encodeURIComponent(token)}&email=${encodeURIComponent(email || '')}`;
     }
 
     function showEditProfileModal() {
@@ -798,19 +818,31 @@
 
     async function createRoom() {
       const maxPlayers = document.querySelector('input[name="playerCount"]:checked').value;
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        alert("Authentication token not found. Please login again.");
+        window.location.href = "/login";
+        return;
+      }
       
       try {
         const res = await fetch('/api/rooms/create', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify({ email, maxPlayers })
         });
         const data = await res.json();
         if (data.roomCode) {
           closeCreateRoomModal();
           const gameType = maxPlayers === "2" ? "1v1" : "4-player";
+          // Store token in sessionStorage for the game to use
+          sessionStorage.setItem('authToken', token);
           alert(`🎉 Room created!\n\nCode: ${data.roomCode}\n\nShare this with other players to join.`);
-          window.location.href = `/game?email=${encodeURIComponent(email)}&roomCode=${data.roomCode}&multiplayer=true&gameType=${gameType}`;
+          window.location.href = `/game?email=${encodeURIComponent(email)}&roomCode=${data.roomCode}&multiplayer=true&gameType=${gameType}&token=${encodeURIComponent(token)}`;
         } else {
           alert(data.message || "Failed to create room");
         }
@@ -830,6 +862,13 @@
 
     async function joinRoom() {
       const roomCode = document.getElementById("roomCodeInput").value.trim().toUpperCase();
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        alert("Authentication token not found. Please login again.");
+        window.location.href = "/login";
+        return;
+      }
       
       if (!roomCode) {
         alert("Please enter a room code");
@@ -839,14 +878,19 @@
       try {
         const res = await fetch('/api/rooms/join', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify({ roomCode, email })
         });
         const data = await res.json();
         if (data.room) {
           closeJoinRoomModal();
           const gameType = data.room.maxPlayers === 2 ? "1v1" : "4-player";
-          window.location.href = `/game?email=${encodeURIComponent(email)}&roomCode=${roomCode}&multiplayer=true&gameType=${gameType}`;
+          // Store token in sessionStorage for the game to use
+          sessionStorage.setItem('authToken', token);
+          window.location.href = `/game?email=${encodeURIComponent(email)}&roomCode=${roomCode}&multiplayer=true&gameType=${gameType}&token=${encodeURIComponent(token)}`;
         } else {
           alert(data.message || "Failed to join room");
         }
